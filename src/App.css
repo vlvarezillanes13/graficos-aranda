@@ -52,6 +52,13 @@
   gap: 0.75rem;
 }
 
+.hero-actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .hero-actions button {
   background: white;
   color: #312e81;
@@ -71,6 +78,17 @@
 .hero-actions button:disabled {
   opacity: 0.7;
   cursor: wait;
+}
+
+.hero-actions .secondary-button {
+  background: rgb(255 255 255 / 12%);
+  color: white;
+  border: 1px solid rgb(255 255 255 / 35%);
+  box-shadow: none;
+}
+
+.hero-actions .secondary-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 20%);
 }
 
 .app {

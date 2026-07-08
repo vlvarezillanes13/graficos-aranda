@@ -34,6 +34,7 @@ export const DEFAULT_SEARCH_BODY: Omit<
   orderField: 'openedDate',
   orderType: 'desc',
   projects: [{ project: 1008 }],
+  repository: 1,
   types: [
     { itemType: 3 },
     { itemType: 4 },
@@ -44,16 +45,20 @@ export const DEFAULT_SEARCH_BODY: Omit<
   viewId: -6,
 }
 
+export const CLOSED_SEARCH_BODY: Omit<
+  ItsmSearchRequest,
+  'pageIndex' | 'pageSize'
+> = {
+  ...DEFAULT_SEARCH_BODY,
+  repository: 2,
+}
+
 export const PAGE_SIZE = 50
 
+export const ITSM_PROXY_PREFIX = '/api/itsm'
+
 export function getItsmApiUrl(): string {
-  const base = import.meta.env.VITE_ITSM_BASE_URL?.replace(/\/$/, '')
-
-  if (base) {
-    return `${base}${ITSM_SEARCH_PATH}`
-  }
-
-  return `/api/itsm${ITSM_SEARCH_PATH}`
+  return `${ITSM_PROXY_PREFIX}${ITSM_SEARCH_PATH}`
 }
 
 export function isItsmConfigured(): boolean {

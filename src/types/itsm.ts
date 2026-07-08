@@ -20,6 +20,7 @@ export interface ItsmSearchRequest {
   pageIndex: number
   pageSize: number
   projects: { project: number }[]
+  repository?: number
   types: { itemType: number }[]
   validate: boolean
   viewId: number

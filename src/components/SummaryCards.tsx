@@ -20,13 +20,14 @@ export function SummaryCards({
   total,
   totalItems,
   open,
+  closed,
   byState,
 }: SummaryCardsProps) {
   const cards = [
     {
       label: 'Registros cargados',
       value: totalItems ? `${total} / ${totalItems}` : String(total),
-      hint: totalItems ? 'Página completa del API' : undefined,
+      hint: totalItems ? 'Abiertos + cerrados del API' : undefined,
       accent: '#6366f1',
       icon: '📋',
     },
@@ -36,6 +37,13 @@ export function SummaryCards({
       hint: `${total ? Math.round((open / total) * 100) : 0}% del total`,
       accent: '#f97316',
       icon: '🔓',
+    },
+    {
+      label: 'Cerrados',
+      value: closed,
+      hint: `${total ? Math.round((closed / total) * 100) : 0}% del total`,
+      accent: '#14b8a6',
+      icon: '✅',
     },
     ...Object.entries(STATE_CARD_CONFIG).map(([state, config]) => ({
       label: state,

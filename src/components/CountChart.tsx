@@ -32,16 +32,20 @@ const COLORS = [
   '#ef4444',
 ]
 
+function estimateYAxisWidth(labels: string[]): number {
+  const longest = Math.max(...labels.map((label) => label.length), 8)
+  return Math.min(Math.max(longest * 6.5 + 20, 120), 420)
+}
+
 export function BarCountChart({
   title,
   data,
   color,
   maxItems = 10,
 }: CountChartProps) {
-  const chartData = data.slice(0, maxItems).map((item) => ({
-    ...item,
-    shortName: truncateLabel(item.name, 22),
-  }))
+  const chartData = data.slice(0, maxItems)
+  const yAxisWidth = estimateYAxisWidth(chartData.map((item) => item.name))
+  const chartHeight = Math.max(300, chartData.length * 30 + 48)
 
   if (chartData.length === 0) {
     return (
@@ -55,20 +59,20 @@ export function BarCountChart({
   return (
     <article className="chart-card">
       <h3>{title}</h3>
-      <div className="chart-container">
+      <div className="chart-container" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+            margin={{ top: 8, right: 16, left: 4, bottom: 8 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis type="number" allowDecimals={false} />
             <YAxis
               type="category"
-              dataKey="shortName"
-              width={140}
-              tick={{ fontSize: 12 }}
+              dataKey="name"
+              width={yAxisWidth}
+              tick={{ fontSize: 11 }}
             />
             <Tooltip
               formatter={(value: number) => [value, 'Cantidad']}

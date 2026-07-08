@@ -13,6 +13,7 @@ export type TrackedState = (typeof TRACKED_STATES)[number]
 export interface DashboardSummary {
   total: number
   open: number
+  closed: number
   byState: Record<TrackedState, number>
 }
 
@@ -56,6 +57,7 @@ export function getSummary(items: IncidentItem[]): DashboardSummary {
   return {
     total: items.length,
     open: items.filter((i) => !i.isClosed).length,
+    closed: items.filter((i) => i.isClosed).length,
     byState,
   }
 }

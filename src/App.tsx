@@ -15,6 +15,7 @@ import {
   groupByField,
   type FilterState,
 } from './utils/aggregations'
+import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
 import './App.css'
 
 const GROUP_OPTIONS: { value: GroupField; label: string }[] = [
@@ -42,7 +43,7 @@ function App() {
   const [source, setSource] = useState<'itsm' | 'mock'>('mock')
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null)
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
-  const [customField, setCustomField] = useState<GroupField>('groupName')
+  const [customField, setCustomField] = useState<GroupField>('responsibleName')
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
   const [selectedItem, setSelectedItem] = useState<IncidentItem | null>(null)
 
@@ -89,6 +90,8 @@ function App() {
     GROUP_OPTIONS.find((option) => option.value === customField)?.label ??
     customField
 
+  const exportCounts = useMemo(() => getExportCounts(items), [items])
+
   return (
     <div className="app-shell">
       <header className="hero">
@@ -113,9 +116,20 @@ function App() {
           <span className={`source-badge ${source}`}>
             {source === 'itsm' ? 'Conectado a ITSM' : 'Modo demo'}
           </span>
-          <button type="button" onClick={() => void loadData()} disabled={loading}>
-            {loading ? 'Actualizando...' : 'Actualizar datos'}
-          </button>
+          <div className="hero-actions-buttons">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => downloadIncidentsXlsx(items, fetchedAt)}
+              disabled={loading || items.length === 0}
+              title={`${exportCounts.open} abiertos y ${exportCounts.closed} cerrados`}
+            >
+              Descargar XLSX ({exportCounts.open}+{exportCounts.closed})
+            </button>
+            <button type="button" onClick={() => void loadData()} disabled={loading}>
+              {loading ? 'Actualizando...' : 'Actualizar datos'}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -133,7 +147,10 @@ function App() {
           <div className="alert info">
             {isItsmConfigured() ? (
               <p>
-                Revisa tu token o cookie en <code>.env</code>. Si el token
+                Revisa tu token o cookie en <code>.env</code> y reinicia{' '}
+                <code>npm run dev</code>. Usa el proxy local{' '}
+                <code>/api/itsm</code> (no llames directo a{' '}
+                <code>itsm.sonda.com</code> desde el navegador). Si el token
                 expiró, genera uno nuevo desde Postman.
               </p>
             ) : (
