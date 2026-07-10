@@ -60,10 +60,3 @@ export const ITSM_PROXY_PREFIX = '/api/itsm'
 export function getItsmApiUrl(): string {
   return `${ITSM_PROXY_PREFIX}${ITSM_SEARCH_PATH}`
 }
-
-export function isItsmConfigured(): boolean {
-  return (
-    import.meta.env.VITE_ITSM_USE_MOCK !== 'true' &&
-    Boolean(import.meta.env.VITE_ITSM_AUTH_TOKEN)
-  )
-}

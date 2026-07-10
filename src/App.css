@@ -114,12 +114,6 @@
   border: none;
 }
 
-.source-badge.mock {
-  background: #fef3c7;
-  color: #92400e;
-  border: none;
-}
-
 .alert {
   padding: 1rem 1.1rem;
   border-radius: 14px;
@@ -355,6 +349,56 @@
 
 .table-header {
   margin-bottom: 1rem;
+}
+
+.table-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.table-pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-size-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.page-size-field select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.45rem 0.65rem;
+  background: white;
+  color: #0f172a;
+}
+
+.page-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.page-indicator {
+  min-width: 7.5rem;
+  text-align: center;
+  color: #475569;
+  font-weight: 600;
 }
 
 .table-wrapper {

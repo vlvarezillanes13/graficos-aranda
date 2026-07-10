@@ -36,6 +36,5 @@ export interface ItsmSearchResponse {
 export interface FetchResult {
   items: IncidentItem[]
   totalItems: number
-  source: 'itsm' | 'mock'
   fetchedAt: Date
 }

@@ -5,7 +5,6 @@ import { ItemDetailPanel } from './components/ItemDetailPanel'
 import { ItemsTable } from './components/ItemsTable'
 import { LoadingState } from './components/LoadingState'
 import { SummaryCards } from './components/SummaryCards'
-import { isItsmConfigured } from './config/itsm'
 import { fetchItsmItems } from './services/itsmService'
 import type { GroupField, IncidentItem } from './types/incident'
 import {
@@ -40,7 +39,6 @@ function App() {
   const [totalItems, setTotalItems] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<'itsm' | 'mock'>('mock')
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null)
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
   const [customField, setCustomField] = useState<GroupField>('responsibleName')
@@ -55,7 +53,6 @@ function App() {
       const result = await fetchItsmItems()
       setItems(result.items)
       setTotalItems(result.totalItems)
-      setSource(result.source)
       setFetchedAt(result.fetchedAt)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
@@ -113,9 +110,9 @@ function App() {
         </div>
 
         <div className="hero-actions">
-          <span className={`source-badge ${source}`}>
-            {source === 'itsm' ? 'Conectado a ITSM' : 'Modo demo'}
-          </span>
+          {!loading && !error && (
+            <span className="source-badge itsm">Conectado a ITSM</span>
+          )}
           <div className="hero-actions-buttons">
             <button
               type="button"
@@ -140,26 +137,6 @@ function App() {
           <div className="alert error" role="alert">
             <strong>No se pudieron cargar los datos.</strong>
             <p>{error}</p>
-          </div>
-        )}
-
-        {!loading && !error && source === 'mock' && (
-          <div className="alert info">
-            {isItsmConfigured() ? (
-              <p>
-                Revisa tu token o cookie en <code>.env</code> y reinicia{' '}
-                <code>npm run dev</code>. Usa el proxy local{' '}
-                <code>/api/itsm</code> (no llames directo a{' '}
-                <code>itsm.sonda.com</code> desde el navegador). Si el token
-                expiró, genera uno nuevo desde Postman.
-              </p>
-            ) : (
-              <p>
-                Configura <code>VITE_ITSM_AUTH_TOKEN</code> en un archivo{' '}
-                <code>.env</code> para conectar con ITSM SONDA. Copia{' '}
-                <code>.env.example</code> como base.
-              </p>
-            )}
           </div>
         )}
 

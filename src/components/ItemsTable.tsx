@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { IncidentItem } from '../types/incident'
 import { formatDate } from '../utils/aggregations'
 
@@ -13,9 +13,13 @@ type SortKey =
   | 'stateName'
   | 'priorityName'
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+
 export function ItemsTable({ items, onSelect }: ItemsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('openedDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
@@ -33,6 +37,28 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
         : bStr.localeCompare(aStr)
     })
   }, [items, sortKey, sortDir])
+
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+
+  useEffect(() => {
+    setPage(1)
+  }, [items, sortKey, sortDir, pageSize])
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return sortedItems.slice(start, start + pageSize)
+  }, [sortedItems, currentPage, pageSize])
+
+  const rangeStart =
+    sortedItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const rangeEnd = Math.min(currentPage * pageSize, sortedItems.length)
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -93,7 +119,7 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
                 </td>
               </tr>
             ) : (
-              sortedItems.map((item) => (
+              paginatedItems.map((item) => (
                 <tr
                   key={item.id}
                   className="clickable-row"
@@ -121,6 +147,69 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
           </tbody>
         </table>
       </div>
+
+      {sortedItems.length > 0 && (
+        <div className="table-pagination">
+          <p>
+            Mostrando <strong>{rangeStart}</strong>–<strong>{rangeEnd}</strong> de{' '}
+            <strong>{sortedItems.length}</strong> registros
+          </p>
+
+          <div className="table-pagination-controls">
+            <label className="page-size-field">
+              <span>Por página</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="page-buttons">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setPage(1)}
+                disabled={currentPage === 1}
+              >
+                «
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setPage((value) => value - 1)}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </button>
+              <span className="page-indicator">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setPage((value) => value + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setPage(totalPages)}
+                disabled={currentPage === totalPages}
+              >
+                »
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
