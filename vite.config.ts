@@ -2,12 +2,12 @@ import react from '@vitejs/plugin-react'
 import type { ProxyOptions } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
 
-function createItsmProxy(env: Record<string, string>): ProxyOptions {
+function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
   return {
     target: 'https://itsm.sonda.com',
     changeOrigin: true,
     secure: true,
-    rewrite: (path) => path.replace(/^\/api\/itsm/, ''),
+    rewrite: () => '/asmsconsole/api/v9/item/search?language=0',
     configure: (proxy) => {
       proxy.on('proxyReq', (proxyReq) => {
         proxyReq.setHeader('Accept', 'application/json, text/plain, */*')
@@ -35,20 +35,20 @@ function createItsmProxy(env: Record<string, string>): ProxyOptions {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const itsmProxy = createItsmProxy(env)
+  const itsmSearchProxy = createItsmSearchProxy(env)
 
   return {
     plugins: [react()],
     server: {
       port: 5173,
       proxy: {
-        '/api/itsm': itsmProxy,
+        '/api/itsm-search': itsmSearchProxy,
       },
     },
     preview: {
       port: 4173,
       proxy: {
-        '/api/itsm': itsmProxy,
+        '/api/itsm-search': itsmSearchProxy,
       },
     },
   }

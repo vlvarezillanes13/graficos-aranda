@@ -1,8 +1,5 @@
 import type { ItsmSearchRequest } from '../types/itsm'
 
-export const ITSM_SEARCH_PATH =
-  '/asmsconsole/api/v9/item/search?language=0'
-
 export const DEFAULT_SEARCH_BODY: Omit<
   ItsmSearchRequest,
   'pageIndex' | 'pageSize'
@@ -55,8 +52,8 @@ export const CLOSED_SEARCH_BODY: Omit<
 
 export const PAGE_SIZE = 50
 
-export const ITSM_PROXY_PREFIX = '/api/itsm'
+export const ITSM_API_PATH = '/api/itsm-search'
 
 export function getItsmApiUrl(): string {
-  return `${ITSM_PROXY_PREFIX}${ITSM_SEARCH_PATH}`
+  return ITSM_API_PATH
 }
