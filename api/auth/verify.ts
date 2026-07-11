@@ -1,4 +1,4 @@
-import { extractBearerToken, verifySessionToken } from '../../lib/auth'
+import { extractBearerToken, verifySessionToken } from '../../lib/auth.js'
 
 export const config = {
   runtime: 'edge',

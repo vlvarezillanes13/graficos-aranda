@@ -1,7 +1,7 @@
 import {
   extractBearerToken,
   verifySessionToken,
-} from '../lib/auth'
+} from '../lib/auth.js'
 
 const ITSM_ORIGIN = 'https://itsm.sonda.com'
 const ITSM_SEARCH_URL = `${ITSM_ORIGIN}/asmsconsole/api/v9/item/search?language=0`

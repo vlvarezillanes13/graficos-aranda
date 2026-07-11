@@ -2,7 +2,7 @@ import {
   createSessionToken,
   verifyCredentials,
   type LoginRequest,
-} from '../../lib/auth'
+} from '../../lib/auth.js'
 
 export const config = {
   runtime: 'edge',

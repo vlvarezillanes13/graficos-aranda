@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin, ProxyOptions } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
-import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer'
+import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer.js'
 
 function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
   return {

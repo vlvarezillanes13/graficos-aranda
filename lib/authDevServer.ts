@@ -5,7 +5,7 @@ import {
   verifyCredentials,
   verifySessionToken,
   type LoginRequest,
-} from './auth'
+} from './auth.js'
 
 function readJsonBody(request: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
