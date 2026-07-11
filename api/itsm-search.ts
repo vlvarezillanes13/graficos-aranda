@@ -1,3 +1,8 @@
+import {
+  extractBearerToken,
+  verifySessionToken,
+} from '../lib/auth'
+
 const ITSM_ORIGIN = 'https://itsm.sonda.com'
 const ITSM_SEARCH_URL = `${ITSM_ORIGIN}/asmsconsole/api/v9/item/search?language=0`
 
@@ -30,6 +35,12 @@ export default async function handler(request: Request): Promise<Response> {
 
   if (request.method !== 'POST') {
     return Response.json({ error: 'Method not allowed' }, { status: 405 })
+  }
+
+  const sessionToken = extractBearerToken(request.headers.get('Authorization'))
+  const user = await verifySessionToken(sessionToken)
+  if (!user) {
+    return Response.json({ error: 'Sesión no válida o expirada' }, { status: 401 })
   }
 
   const token = getAuthToken()

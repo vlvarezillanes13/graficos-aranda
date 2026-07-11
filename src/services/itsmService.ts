@@ -4,23 +4,16 @@ import {
   PAGE_SIZE,
   getItsmApiUrl,
 } from '../config/itsm'
-
+import { getAuthHeaders } from './authService'
 import type { IncidentItem } from '../types/incident'
-
 import type { FetchResult, ItsmSearchRequest, ItsmSearchResponse } from '../types/itsm'
 
-
-
 function buildHeaders(): HeadersInit {
-
   return {
-
     Accept: 'application/json, text/plain, */*',
-
     'Content-Type': 'application/json',
-
+    ...getAuthHeaders(),
   }
-
 }
 
 

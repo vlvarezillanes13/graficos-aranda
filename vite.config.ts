@@ -1,6 +1,8 @@
 import react from '@vitejs/plugin-react'
-import type { ProxyOptions } from 'vite'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { Plugin, ProxyOptions } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
+import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer'
 
 function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
   return {
@@ -9,7 +11,7 @@ function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
     secure: true,
     rewrite: () => '/asmsconsole/api/v9/item/search?language=0',
     configure: (proxy) => {
-      proxy.on('proxyReq', (proxyReq) => {
+      proxy.on('proxyReq', (proxyReq, req) => {
         proxyReq.setHeader('Accept', 'application/json, text/plain, */*')
         proxyReq.setHeader('Content-Type', 'application/json')
         proxyReq.setHeader('Origin', 'https://itsm.sonda.com')
@@ -28,7 +30,51 @@ function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
         if (env.VITE_ITSM_AUTH_COOKIE) {
           proxyReq.setHeader('Cookie', env.VITE_ITSM_AUTH_COOKIE)
         }
+
+        const authorization = req.headers.authorization
+        if (authorization) {
+          proxyReq.setHeader('Authorization', authorization)
+        }
       })
+    },
+  }
+}
+
+function createAuthMiddleware() {
+  return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    const url = req.url?.split('?')[0]
+
+    if (url === '/api/auth/login' && req.method === 'POST') {
+      void handleAuthLogin(req, res)
+      return
+    }
+
+    if (url === '/api/auth/verify' && req.method === 'GET') {
+      void handleAuthVerify(req, res)
+      return
+    }
+
+    if (url === '/api/itsm-search' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) next()
+      })
+      return
+    }
+
+    next()
+  }
+}
+
+function authApiDevPlugin(): Plugin {
+  const middleware = createAuthMiddleware()
+
+  return {
+    name: 'auth-api-dev',
+    configureServer(server) {
+      server.middlewares.use(middleware)
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(middleware)
     },
   }
 }
@@ -38,7 +84,7 @@ export default defineConfig(({ mode }) => {
   const itsmSearchProxy = createItsmSearchProxy(env)
 
   return {
-    plugins: [react()],
+    plugins: [react(), authApiDevPlugin()],
     server: {
       port: 5173,
       proxy: {

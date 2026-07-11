@@ -4,7 +4,13 @@ import { FilterBar } from './components/FilterBar'
 import { ItemDetailPanel } from './components/ItemDetailPanel'
 import { ItemsTable } from './components/ItemsTable'
 import { LoadingState } from './components/LoadingState'
+import { LoginPage } from './components/LoginPage'
 import { SummaryCards } from './components/SummaryCards'
+import {
+  getSessionUsername,
+  logout,
+  verifySession,
+} from './services/authService'
 import { fetchItsmItems } from './services/itsmService'
 import type { GroupField, IncidentItem } from './types/incident'
 import {
@@ -15,6 +21,7 @@ import {
   type FilterState,
 } from './utils/aggregations'
 import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
+import { useIdleTimeout } from './hooks/useIdleTimeout'
 import './App.css'
 
 const GROUP_OPTIONS: { value: GroupField; label: string }[] = [
@@ -35,6 +42,8 @@ const DEFAULT_FILTERS: FilterState = {
 }
 
 function App() {
+  const [authReady, setAuthReady] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
   const [items, setItems] = useState<IncidentItem[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -64,8 +73,16 @@ function App() {
   }, [])
 
   useEffect(() => {
+    void verifySession().then((valid) => {
+      setAuthenticated(valid)
+      setAuthReady(true)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!authenticated) return
     void loadData()
-  }, [loadData])
+  }, [authenticated, loadData])
 
   const filteredItems = useMemo(
     () => filterItems(items, filters),
@@ -88,6 +105,28 @@ function App() {
     customField
 
   const exportCounts = useMemo(() => getExportCounts(items), [items])
+  const username = getSessionUsername()
+
+  const handleLogout = useCallback(() => {
+    logout()
+    setAuthenticated(false)
+    setItems([])
+    setTotalItems(0)
+    setError(null)
+    setFetchedAt(null)
+    setFilters(DEFAULT_FILTERS)
+    setSelectedItem(null)
+  }, [])
+
+  useIdleTimeout(handleLogout, authenticated)
+
+  if (!authReady) {
+    return <LoadingState />
+  }
+
+  if (!authenticated) {
+    return <LoginPage onSuccess={() => setAuthenticated(true)} />
+  }
 
   return (
     <div className="app-shell">
@@ -111,9 +150,18 @@ function App() {
 
         <div className="hero-actions">
           {!loading && !error && (
-            <span className="source-badge itsm">Conectado a ITSM</span>
+            <span className="source-badge itsm">
+              {username ? `${username} · ITSM` : 'Conectado a ITSM'}
+            </span>
           )}
           <div className="hero-actions-buttons">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleLogout}
+            >
+              Cerrar sesión
+            </button>
             <button
               type="button"
               className="secondary-button"
