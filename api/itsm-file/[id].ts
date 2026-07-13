@@ -1,26 +1,30 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   buildFileUrl,
   buildItsmHeaders,
-  requireSession,
-} from '../lib/itsmUpstream.js'
+  requireSessionFromAuthHeader,
+} from '../../lib/itsmUpstream.js'
 
-export const config = {
-  runtime: 'edge',
-}
-
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'GET') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 })
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
   }
 
-  const session = await requireSession(request)
-  if (session instanceof Response) return session
+  const user = await requireSessionFromAuthHeader(req.headers.authorization)
+  if (!user) {
+    res.status(401).json({ error: 'Sesión no válida o expirada' })
+    return
+  }
 
-  const url = new URL(request.url)
-  const fileId = url.pathname.split('/').pop()
+  const fileId = typeof req.query.id === 'string' ? req.query.id : undefined
 
-  if (!fileId || fileId === 'itsm-file') {
-    return Response.json({ error: 'fileId es obligatorio' }, { status: 400 })
+  if (!fileId) {
+    res.status(400).json({ error: 'fileId es obligatorio' })
+    return
   }
 
   try {
@@ -29,31 +33,28 @@ export default async function handler(request: Request): Promise<Response> {
       headers: buildItsmHeaders(''),
     })
 
+    const buffer = Buffer.from(await upstream.arrayBuffer())
     const contentType =
       upstream.headers.get('content-type') ?? 'application/octet-stream'
     const contentDisposition = upstream.headers.get('content-disposition')
 
-    const headers = new Headers({
-      'Content-Type': contentType,
-      'Cache-Control': 'private, max-age=300',
-    })
+    res.status(upstream.status)
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Cache-Control', 'private, max-age=300')
 
     if (contentDisposition) {
-      headers.set(
+      res.setHeader(
         'Content-Disposition',
         contentDisposition.replace(/attachment/i, 'inline'),
       )
     } else {
-      headers.set('Content-Disposition', 'inline')
+      res.setHeader('Content-Disposition', 'inline')
     }
 
-    return new Response(await upstream.arrayBuffer(), {
-      status: upstream.status,
-      headers,
-    })
+    res.end(buffer)
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    return Response.json({ error: message }, { status: 502 })
+    res.status(502).json({ error: message })
   }
 }

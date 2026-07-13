@@ -1,27 +1,32 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   buildItemFilesUrl,
   buildItsmHeaders,
-  requireSession,
+  requireSessionFromAuthHeader,
 } from '../lib/itsmUpstream.js'
 
-export const config = {
-  runtime: 'edge',
-}
-
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'GET') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 })
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
   }
 
-  const session = await requireSession(request)
-  if (session instanceof Response) return session
+  const user = await requireSessionFromAuthHeader(req.headers.authorization)
+  if (!user) {
+    res.status(401).json({ error: 'Sesión no válida o expirada' })
+    return
+  }
 
-  const url = new URL(request.url)
-  const itemId = url.searchParams.get('itemId')
-  const itemType = url.searchParams.get('itemType') ?? '1'
+  const itemId = typeof req.query.itemId === 'string' ? req.query.itemId : undefined
+  const itemType =
+    typeof req.query.itemType === 'string' ? req.query.itemType : '1'
 
   if (!itemId) {
-    return Response.json({ error: 'itemId es obligatorio' }, { status: 400 })
+    res.status(400).json({ error: 'itemId es obligatorio' })
+    return
   }
 
   try {
@@ -31,17 +36,15 @@ export default async function handler(request: Request): Promise<Response> {
     })
 
     const body = await upstream.text()
-
-    return new Response(body, {
-      status: upstream.status,
-      headers: {
-        'Content-Type':
-          upstream.headers.get('content-type') ?? 'application/json',
-      },
-    })
+    res.status(upstream.status)
+    res.setHeader(
+      'Content-Type',
+      upstream.headers.get('content-type') ?? 'application/json',
+    )
+    res.end(body)
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    return Response.json({ error: message }, { status: 502 })
+    res.status(502).json({ error: message })
   }
 }
