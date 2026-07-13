@@ -9,6 +9,7 @@ import {
   getPreviewKind,
   type PreviewKind,
 } from '../services/attachmentService'
+import { AttachmentZoomModal } from './AttachmentZoomModal'
 
 interface ItemDetailPanelProps {
   item: IncidentItem | null
@@ -29,6 +30,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
   const [preview, setPreview] = useState<FilePreview | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [zoomOpen, setZoomOpen] = useState(false)
 
   useEffect(() => {
     if (!item) return
@@ -38,6 +40,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
     setFilesError(null)
     setPreview(null)
     setPreviewError(null)
+    setZoomOpen(false)
     setFilesLoading(true)
 
     void fetchItemFiles(item.id, item.itemType)
@@ -76,6 +79,7 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
     }
     setPreview(null)
     setPreviewError(null)
+    setZoomOpen(false)
   }
 
   const openAttachment = async (file: ItemAttachment) => {
@@ -248,17 +252,35 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
             <div className="attachment-preview">
               <div className="attachment-preview-header">
                 <strong>{preview.name}</strong>
-                <button type="button" className="ghost-button" onClick={closePreview}>
-                  Cerrar vista
-                </button>
+                <div className="attachment-preview-actions">
+                  {preview.kind !== 'unsupported' && (
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => setZoomOpen(true)}
+                    >
+                      Ampliar
+                    </button>
+                  )}
+                  <button type="button" className="ghost-button" onClick={closePreview}>
+                    Cerrar vista
+                  </button>
+                </div>
               </div>
 
               {preview.kind === 'image' && (
-                <img
-                  src={preview.url}
-                  alt={preview.name}
-                  className="attachment-preview-image"
-                />
+                <button
+                  type="button"
+                  className="attachment-preview-image-button"
+                  onClick={() => setZoomOpen(true)}
+                  aria-label={`Ampliar ${preview.name}`}
+                >
+                  <img
+                    src={preview.url}
+                    alt={preview.name}
+                    className="attachment-preview-image"
+                  />
+                </button>
               )}
 
               {preview.kind === 'pdf' && (
@@ -288,6 +310,15 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
             </div>
           )}
         </section>
+
+        {zoomOpen && preview && (
+          <AttachmentZoomModal
+            name={preview.name}
+            url={preview.url}
+            kind={preview.kind}
+            onClose={() => setZoomOpen(false)}
+          />
+        )}
       </aside>
     </div>
   )
