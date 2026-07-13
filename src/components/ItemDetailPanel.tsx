@@ -1,13 +1,105 @@
+import { useEffect, useState } from 'react'
 import type { IncidentItem } from '../types/incident'
+import type { ItemAttachment } from '../types/attachment'
 import { formatDate, getProgressTone } from '../utils/aggregations'
+import {
+  fetchFileBlob,
+  fetchItemFiles,
+  formatFileSize,
+  getPreviewKind,
+  type PreviewKind,
+} from '../services/attachmentService'
 
 interface ItemDetailPanelProps {
   item: IncidentItem | null
   onClose: () => void
 }
 
+interface FilePreview {
+  name: string
+  url: string
+  kind: PreviewKind
+  contentType: string
+}
+
 export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
+  const [files, setFiles] = useState<ItemAttachment[]>([])
+  const [filesLoading, setFilesLoading] = useState(false)
+  const [filesError, setFilesError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<FilePreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!item) return
+
+    let cancelled = false
+    setFiles([])
+    setFilesError(null)
+    setPreview(null)
+    setPreviewError(null)
+    setFilesLoading(true)
+
+    void fetchItemFiles(item.id, item.itemType)
+      .then((content) => {
+        if (!cancelled) setFiles(content)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setFilesError(
+            error instanceof Error ? error.message : 'Error al cargar adjuntos',
+          )
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFilesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [item])
+
+  useEffect(() => {
+    return () => {
+      if (preview?.url) {
+        URL.revokeObjectURL(preview.url)
+      }
+    }
+  }, [preview?.url])
+
   if (!item) return null
+
+  const closePreview = () => {
+    if (preview?.url) {
+      URL.revokeObjectURL(preview.url)
+    }
+    setPreview(null)
+    setPreviewError(null)
+  }
+
+  const openAttachment = async (file: ItemAttachment) => {
+    setPreviewLoading(true)
+    setPreviewError(null)
+
+    if (preview?.url) {
+      URL.revokeObjectURL(preview.url)
+      setPreview(null)
+    }
+
+    try {
+      const { blob, contentType } = await fetchFileBlob(file.id, file.name)
+      const kind = getPreviewKind(file.name, contentType)
+      const url = URL.createObjectURL(blob)
+      setPreview({ name: file.name, url, kind, contentType })
+    } catch (error) {
+      setPreviewError(
+        error instanceof Error ? error.message : 'No se pudo abrir el adjunto',
+      )
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
   return (
     <div className="detail-overlay" onClick={onClose} role="presentation">
@@ -103,6 +195,99 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
           <h3>Descripción</h3>
           <p>{item.descriptionNoHtml.trim() || 'Sin descripción'}</p>
         </div>
+
+        <section className="detail-attachments">
+          <div className="detail-attachments-header">
+            <h3>Adjuntos</h3>
+            {!filesLoading && (
+              <span className="detail-attachments-count">
+                {files.length} archivo{files.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+
+          {filesLoading && <p className="detail-attachments-muted">Cargando adjuntos...</p>}
+          {filesError && <p className="detail-attachments-error">{filesError}</p>}
+
+          {!filesLoading && !filesError && files.length === 0 && (
+            <p className="detail-attachments-muted">Este ticket no tiene adjuntos</p>
+          )}
+
+          {!filesLoading && !filesError && files.length > 0 && (
+            <ul className="attachment-list">
+              {files.map((file) => (
+                <li key={file.id}>
+                  <button
+                    type="button"
+                    className="attachment-item"
+                    onClick={() => void openAttachment(file)}
+                    disabled={previewLoading}
+                  >
+                    <span className="attachment-name">{file.name}</span>
+                    <span className="attachment-meta">
+                      {formatFileSize(file.size)} · {file.userName} ·{' '}
+                      {formatDate(file.date)}
+                    </span>
+                    {file.description.trim() && (
+                      <span className="attachment-description">{file.description}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {previewLoading && (
+            <p className="detail-attachments-muted">Abriendo adjunto...</p>
+          )}
+          {previewError && (
+            <p className="detail-attachments-error">{previewError}</p>
+          )}
+
+          {preview && (
+            <div className="attachment-preview">
+              <div className="attachment-preview-header">
+                <strong>{preview.name}</strong>
+                <button type="button" className="ghost-button" onClick={closePreview}>
+                  Cerrar vista
+                </button>
+              </div>
+
+              {preview.kind === 'image' && (
+                <img
+                  src={preview.url}
+                  alt={preview.name}
+                  className="attachment-preview-image"
+                />
+              )}
+
+              {preview.kind === 'pdf' && (
+                <iframe
+                  src={preview.url}
+                  title={preview.name}
+                  className="attachment-preview-frame"
+                />
+              )}
+
+              {preview.kind === 'text' && (
+                <iframe
+                  src={preview.url}
+                  title={preview.name}
+                  className="attachment-preview-frame"
+                />
+              )}
+
+              {preview.kind === 'unsupported' && (
+                <div className="attachment-preview-fallback">
+                  <p>Vista previa no disponible para este tipo de archivo.</p>
+                  <a href={preview.url} download={preview.name} className="ghost-button">
+                    Descargar {preview.name}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
       </aside>
     </div>
   )

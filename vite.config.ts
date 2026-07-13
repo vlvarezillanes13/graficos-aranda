@@ -3,6 +3,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin, ProxyOptions } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
 import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer.js'
+import {
+  handleItsmFile,
+  handleItsmItemFiles,
+  isProtectedItsmApi,
+} from './lib/itsmDevHandlers.js'
+import { configureItsmRuntimeEnv } from './lib/itsmUpstream.js'
 
 function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
   return {
@@ -42,19 +48,35 @@ function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
 
 function createAuthMiddleware() {
   return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
-    const url = req.url?.split('?')[0]
+    const requestUrl = new URL(req.url ?? '/', 'http://localhost')
+    const pathname = requestUrl.pathname
 
-    if (url === '/api/auth/login' && req.method === 'POST') {
+    if (pathname === '/api/auth/login' && req.method === 'POST') {
       void handleAuthLogin(req, res)
       return
     }
 
-    if (url === '/api/auth/verify' && req.method === 'GET') {
+    if (pathname === '/api/auth/verify' && req.method === 'GET') {
       void handleAuthVerify(req, res)
       return
     }
 
-    if (url === '/api/itsm-search' && req.method === 'POST') {
+    if (pathname === '/api/itsm-item-files' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmItemFiles(req, res, requestUrl)
+      })
+      return
+    }
+
+    if (pathname.startsWith('/api/itsm-file/') && req.method === 'GET') {
+      const fileId = pathname.replace('/api/itsm-file/', '')
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmFile(req, res, fileId)
+      })
+      return
+    }
+
+    if (isProtectedItsmApi(pathname, req.method)) {
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) next()
       })
@@ -65,7 +87,12 @@ function createAuthMiddleware() {
   }
 }
 
-function authApiDevPlugin(): Plugin {
+function authApiDevPlugin(env: Record<string, string>): Plugin {
+  configureItsmRuntimeEnv({
+    token: env.ITSM_AUTH_TOKEN ?? env.VITE_ITSM_AUTH_TOKEN,
+    cookie: env.ITSM_AUTH_COOKIE ?? env.VITE_ITSM_AUTH_COOKIE,
+  })
+
   const middleware = createAuthMiddleware()
 
   return {
@@ -84,7 +111,7 @@ export default defineConfig(({ mode }) => {
   const itsmSearchProxy = createItsmSearchProxy(env)
 
   return {
-    plugins: [react(), authApiDevPlugin()],
+    plugins: [react(), authApiDevPlugin(env)],
     server: {
       port: 5173,
       proxy: {
