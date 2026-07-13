@@ -11,7 +11,7 @@ const ACTIVITY_EVENTS = [
 
 const CHECK_INTERVAL_MS = 30_000
 
-export const IDLE_TIMEOUT_MS = 60 * 60 * 1000
+export const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
 export function useIdleTimeout(
   onIdle: () => void,
