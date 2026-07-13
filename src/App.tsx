@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BarCountChart, PieCountChart } from './components/CountChart'
+import { CollapsibleSection } from './components/CollapsibleSection'
 import { FilterBar } from './components/FilterBar'
 import { ItemDetailPanel } from './components/ItemDetailPanel'
 import { ItemsTable } from './components/ItemsTable'
 import { LoadingState } from './components/LoadingState'
 import { LoginPage } from './components/LoginPage'
+import { ResponsibleStateMatrixTable } from './components/ResponsibleStateMatrix'
 import { SummaryCards } from './components/SummaryCards'
 import {
   getSessionUsername,
@@ -18,7 +20,13 @@ import {
   getSummary,
   getUniqueValues,
   groupByField,
+  buildResponsibleByStateMatrix,
+  applyMatrixSelectionToFilters,
+  clearMatrixSelectionFromFilters,
+  filtersToMatrixSelection,
+  isMatrixSelectionActive,
   type FilterState,
+  type MatrixSelection,
 } from './utils/aggregations'
 import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
@@ -39,6 +47,7 @@ const DEFAULT_FILTERS: FilterState = {
   itemType: 'all',
   group: 'all',
   state: 'all',
+  responsible: 'all',
 }
 
 function App() {
@@ -94,10 +103,24 @@ function App() {
   const itemTypes = useMemo(() => getUniqueValues(items, 'itemTypeName'), [items])
   const groups = useMemo(() => getUniqueValues(items, 'groupName'), [items])
   const states = useMemo(() => getUniqueValues(items, 'stateName'), [items])
+  const responsibles = useMemo(
+    () => getUniqueValues(items, 'responsibleName'),
+    [items],
+  )
+
+  const matrixSelection = useMemo(
+    () => filtersToMatrixSelection(filters),
+    [filters],
+  )
 
   const customGrouped = useMemo(
     () => groupByField(filteredItems, customField),
     [filteredItems, customField],
+  )
+
+  const responsibleStateMatrix = useMemo(
+    () => buildResponsibleByStateMatrix(filteredItems),
+    [filteredItems],
   )
 
   const customLabel =
@@ -106,6 +129,27 @@ function App() {
 
   const exportCounts = useMemo(() => getExportCounts(items), [items])
   const username = getSessionUsername()
+
+  const handleMatrixSelect = useCallback((selection: MatrixSelection) => {
+    setFilters((current) => {
+      const active = filtersToMatrixSelection(current)
+      if (isMatrixSelectionActive(active, selection)) {
+        return clearMatrixSelectionFromFilters(current, selection)
+      }
+      return applyMatrixSelectionToFilters(current, selection)
+    })
+
+    requestAnimationFrame(() => {
+      document
+        .getElementById('filter-bar-section')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+      const section = document.getElementById('items-table-section')
+      if (section instanceof HTMLDetailsElement) {
+        section.open = true
+      }
+    })
+  }, [])
 
   const handleLogout = useCallback(() => {
     logout()
@@ -189,7 +233,7 @@ function App() {
         )}
 
         {!loading && !error && (
-          <>
+          <div className="dashboard-sections">
             <SummaryCards {...summary} totalItems={totalItems} />
 
             <FilterBar
@@ -197,15 +241,19 @@ function App() {
               itemTypes={itemTypes}
               groups={groups}
               states={states}
+              responsibles={responsibles}
               resultCount={filteredItems.length}
               totalCount={items.length}
               onChange={setFilters}
               onReset={() => setFilters(DEFAULT_FILTERS)}
             />
 
-            <section className="custom-section panel">
+            <CollapsibleSection
+              title="Análisis personalizado"
+              description="Gráficos y tabla agrupada según el campo seleccionado."
+              defaultOpen={false}
+            >
               <div className="custom-controls">
-                <h2>Análisis personalizado</h2>
                 <div className="controls-row">
                   <label>
                     Agrupar por
@@ -279,10 +327,38 @@ function App() {
                   </tbody>
                 </table>
               </div>
-            </section>
+            </CollapsibleSection>
 
-            <ItemsTable items={filteredItems} onSelect={setSelectedItem} />
-          </>
+            <CollapsibleSection
+              id="items-table-section"
+              title="Detalle de tickets"
+              description="Haz clic en una fila para ver el detalle completo."
+              defaultOpen
+            >
+              <ItemsTable
+                items={filteredItems}
+                onSelect={setSelectedItem}
+              />
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="Tickets por responsable y estado"
+              description="Tabla cruzada por persona y estado. Se sincroniza con los filtros de arriba."
+              defaultOpen={false}
+              className="matrix-section"
+            >
+              <p className="matrix-hint">
+                Usa los filtros superiores o haz clic en un número, responsable o
+                estado. Vuelve a hacer clic para quitar el filtro.
+              </p>
+
+              <ResponsibleStateMatrixTable
+                matrix={responsibleStateMatrix}
+                activeSelection={matrixSelection}
+                onSelect={handleMatrixSelect}
+              />
+            </CollapsibleSection>
+          </div>
         )}
       </main>
 

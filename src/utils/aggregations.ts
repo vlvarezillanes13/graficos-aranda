@@ -23,6 +23,7 @@ export interface FilterState {
   itemType: string
   group: string
   state: string
+  responsible: string
 }
 
 export function groupByField(
@@ -64,12 +65,18 @@ export function getSummary(items: IncidentItem[]): DashboardSummary {
 
 export function getUniqueValues(
   items: IncidentItem[],
-  field: 'itemTypeName' | 'groupName' | 'stateName',
+  field: 'itemTypeName' | 'groupName' | 'stateName' | 'responsibleName',
 ): string[] {
   return [
     ...new Set(
       items
-        .map((item) => item[field])
+        .map((item) => {
+          const value = item[field]
+          if (field === 'responsibleName') {
+            return value?.trim() || 'Sin responsable'
+          }
+          return value
+        })
         .filter((value): value is string => Boolean(value?.trim())),
     ),
   ].sort()
@@ -92,6 +99,10 @@ export function filterItems(
     }
     if (filters.state !== 'all' && item.stateName !== filters.state) {
       return false
+    }
+    if (filters.responsible !== 'all') {
+      const responsible = item.responsibleName?.trim() || 'Sin responsable'
+      if (responsible !== filters.responsible) return false
     }
 
     if (!search) return true
@@ -131,4 +142,176 @@ export function getProgressTone(progress: number): string {
   if (progress >= 50) return 'medium'
   if (progress >= 25) return 'low'
   return 'critical'
+}
+
+export interface ResponsibleStateRow {
+  responsible: string
+  counts: Record<string, number>
+  total: number
+}
+
+export interface ResponsibleStateMatrix {
+  states: string[]
+  rows: ResponsibleStateRow[]
+  totals: Record<string, number>
+  grandTotal: number
+}
+
+export type MatrixSelection =
+  | { type: 'cell'; responsible: string; state: string }
+  | { type: 'row'; responsible: string }
+  | { type: 'column'; state: string }
+
+export function getMatrixSelectionLabel(selection: MatrixSelection): string {
+  switch (selection.type) {
+    case 'cell':
+      return `${selection.responsible} · ${selection.state}`
+    case 'row':
+      return `Responsable: ${selection.responsible}`
+    case 'column':
+      return `Estado: ${selection.state}`
+  }
+}
+
+export function filtersToMatrixSelection(
+  filters: FilterState,
+): MatrixSelection | null {
+  const hasResponsible = filters.responsible !== 'all'
+  const hasState = filters.state !== 'all'
+
+  if (hasResponsible && hasState) {
+    return {
+      type: 'cell',
+      responsible: filters.responsible,
+      state: filters.state,
+    }
+  }
+
+  if (hasResponsible) {
+    return { type: 'row', responsible: filters.responsible }
+  }
+
+  if (hasState) {
+    return { type: 'column', state: filters.state }
+  }
+
+  return null
+}
+
+export function applyMatrixSelectionToFilters(
+  filters: FilterState,
+  selection: MatrixSelection,
+): FilterState {
+  switch (selection.type) {
+    case 'cell':
+      return {
+        ...filters,
+        responsible: selection.responsible,
+        state: selection.state,
+      }
+    case 'row':
+      return {
+        ...filters,
+        responsible: selection.responsible,
+        state: 'all',
+      }
+    case 'column':
+      return {
+        ...filters,
+        state: selection.state,
+        responsible: 'all',
+      }
+  }
+}
+
+export function clearMatrixSelectionFromFilters(
+  filters: FilterState,
+  selection: MatrixSelection,
+): FilterState {
+  switch (selection.type) {
+    case 'cell':
+      return { ...filters, responsible: 'all', state: 'all' }
+    case 'row':
+      return { ...filters, responsible: 'all' }
+    case 'column':
+      return { ...filters, state: 'all' }
+  }
+}
+
+export function isMatrixSelectionActive(
+  selection: MatrixSelection | null,
+  candidate: MatrixSelection,
+): boolean {
+  if (!selection) return false
+
+  if (selection.type !== candidate.type) return false
+
+  switch (selection.type) {
+    case 'cell':
+      return (
+        candidate.type === 'cell' &&
+        selection.responsible === candidate.responsible &&
+        selection.state === candidate.state
+      )
+    case 'row':
+      return (
+        candidate.type === 'row' &&
+        selection.responsible === candidate.responsible
+      )
+    case 'column':
+      return candidate.type === 'column' && selection.state === candidate.state
+  }
+}
+
+export function buildResponsibleByStateMatrix(
+  items: IncidentItem[],
+): ResponsibleStateMatrix {
+  const extraStates = new Set<string>()
+  const matrix = new Map<string, Map<string, number>>()
+
+  for (const item of items) {
+    const responsible = item.responsibleName?.trim() || 'Sin responsable'
+    const state = item.stateName?.trim() || 'Sin estado'
+
+    if (!TRACKED_STATES.includes(state as TrackedState)) {
+      extraStates.add(state)
+    }
+
+    if (!matrix.has(responsible)) {
+      matrix.set(responsible, new Map())
+    }
+
+    const row = matrix.get(responsible)!
+    row.set(state, (row.get(state) ?? 0) + 1)
+  }
+
+  const states = [...TRACKED_STATES, ...Array.from(extraStates).sort()]
+
+  const rows = Array.from(matrix.entries())
+    .map(([responsible, countsMap]) => {
+      const counts = Object.fromEntries(
+        states.map((state) => [state, countsMap.get(state) ?? 0]),
+      ) as Record<string, number>
+
+      return {
+        responsible,
+        counts,
+        total: Object.values(counts).reduce((sum, count) => sum + count, 0),
+      }
+    })
+    .sort((a, b) => b.total - a.total)
+
+  const totals = Object.fromEntries(
+    states.map((state) => [
+      state,
+      rows.reduce((sum, row) => sum + row.counts[state], 0),
+    ]),
+  ) as Record<string, number>
+
+  return {
+    states,
+    rows,
+    totals,
+    grandTotal: rows.reduce((sum, row) => sum + row.total, 0),
+  }
 }

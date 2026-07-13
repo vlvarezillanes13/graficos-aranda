@@ -10,6 +10,7 @@ interface ItemsTableProps {
 type SortKey =
   | 'idByProject'
   | 'openedDate'
+  | 'expectedDate'
   | 'stateName'
   | 'priorityName'
 
@@ -73,14 +74,7 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
     sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
   return (
-    <section className="table-section">
-      <div className="table-header">
-        <div>
-          <h2>Detalle de tickets</h2>
-          <p>Haz clic en una fila para ver el detalle completo</p>
-        </div>
-      </div>
-
+    <div className="items-table-content">
       <div className="table-wrapper">
         <table>
           <thead>
@@ -109,12 +103,17 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
                   Apertura{sortIndicator('openedDate')}
                 </button>
               </th>
+              <th>
+                <button type="button" onClick={() => toggleSort('expectedDate')}>
+                  Fecha de Entrega{sortIndicator('expectedDate')}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={8} className="empty-row">
+                <td colSpan={9} className="empty-row">
                   No hay registros con los filtros actuales
                 </td>
               </tr>
@@ -141,6 +140,9 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
                   </td>
                   <td>{item.priorityName}</td>
                   <td>{formatDate(item.openedDate)}</td>
+                  <td>
+                    {formatDate(item.expectedDate > 0 ? item.expectedDate : null)}
+                  </td>
                 </tr>
               ))
             )}
@@ -210,6 +212,6 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
           </div>
         </div>
       )}
-    </section>
+    </div>
   )
 }

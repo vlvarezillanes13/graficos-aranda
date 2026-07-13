@@ -1,14 +1,25 @@
 import type { FilterState } from '../utils/aggregations'
+import {
+  filtersToMatrixSelection,
+  getMatrixSelectionLabel,
+} from '../utils/aggregations'
 
 interface FilterBarProps {
   filters: FilterState
   itemTypes: string[]
   groups: string[]
   states: string[]
+  responsibles: string[]
   resultCount: number
   totalCount: number
   onChange: (filters: FilterState) => void
   onReset: () => void
+}
+
+const STATUS_LABELS: Record<FilterState['status'], string> = {
+  all: 'Todos',
+  open: 'Abiertos',
+  closed: 'Cerrados',
 }
 
 export function FilterBar({
@@ -16,6 +27,7 @@ export function FilterBar({
   itemTypes,
   groups,
   states,
+  responsibles,
   resultCount,
   totalCount,
   onChange,
@@ -24,14 +36,73 @@ export function FilterBar({
   const update = (partial: Partial<FilterState>) =>
     onChange({ ...filters, ...partial })
 
+  const matrixSelection = filtersToMatrixSelection(filters)
+
+  const activeChips: Array<{ key: string; label: string; onClear: () => void }> =
+    []
+
+  if (filters.search.trim()) {
+    activeChips.push({
+      key: 'search',
+      label: `Buscar: ${filters.search.trim()}`,
+      onClear: () => update({ search: '' }),
+    })
+  }
+
+  if (filters.status !== 'all') {
+    activeChips.push({
+      key: 'status',
+      label: `Estado ticket: ${STATUS_LABELS[filters.status]}`,
+      onClear: () => update({ status: 'all' }),
+    })
+  }
+
+  if (filters.itemType !== 'all') {
+    activeChips.push({
+      key: 'itemType',
+      label: `Tipo: ${filters.itemType}`,
+      onClear: () => update({ itemType: 'all' }),
+    })
+  }
+
+  if (filters.group !== 'all') {
+    activeChips.push({
+      key: 'group',
+      label: `Grupo: ${filters.group}`,
+      onClear: () => update({ group: 'all' }),
+    })
+  }
+
+  if (filters.responsible !== 'all') {
+    activeChips.push({
+      key: 'responsible',
+      label: `Responsable: ${filters.responsible}`,
+      onClear: () => update({ responsible: 'all' }),
+    })
+  }
+
+  if (filters.state !== 'all') {
+    activeChips.push({
+      key: 'state',
+      label: `Estado workflow: ${filters.state}`,
+      onClear: () => update({ state: 'all' }),
+    })
+  }
+
   return (
-    <section className="filter-bar">
+    <section id="filter-bar-section" className="filter-bar">
       <div className="filter-bar-header">
         <div>
           <h2>Filtros interactivos</h2>
           <p>
             Mostrando <strong>{resultCount}</strong> de{' '}
             <strong>{totalCount}</strong> registros
+            {matrixSelection && (
+              <>
+                {' '}
+                · Matriz: <strong>{getMatrixSelectionLabel(matrixSelection)}</strong>
+              </>
+            )}
           </p>
         </div>
         <button type="button" className="ghost-button" onClick={onReset}>
@@ -61,6 +132,21 @@ export function FilterBar({
             <option value="all">Todos</option>
             <option value="open">Abiertos</option>
             <option value="closed">Cerrados</option>
+          </select>
+        </label>
+
+        <label className="filter-field">
+          <span>Responsable</span>
+          <select
+            value={filters.responsible}
+            onChange={(e) => update({ responsible: e.target.value })}
+          >
+            <option value="all">Todos</option>
+            {responsibles.map((responsible) => (
+              <option key={responsible} value={responsible}>
+                {responsible}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -109,6 +195,22 @@ export function FilterBar({
           </select>
         </label>
       </div>
+
+      {activeChips.length > 0 && (
+        <div className="filter-active-chips">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              className="filter-chip"
+              onClick={chip.onClear}
+              title="Quitar filtro"
+            >
+              {chip.label} <span aria-hidden>×</span>
+            </button>
+          ))}
+        </div>
+      )}
     </section>
   )
 }
