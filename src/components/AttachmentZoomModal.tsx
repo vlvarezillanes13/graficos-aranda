@@ -166,7 +166,16 @@ export function AttachmentZoomModal({
             </div>
           )}
 
-          {(kind === 'pdf' || kind === 'text') && (
+          {kind === 'pdf' && (
+            <embed
+              src={url}
+              type="application/pdf"
+              title={name}
+              className="attachment-zoom-frame"
+            />
+          )}
+
+          {kind === 'text' && (
             <iframe
               src={url}
               title={name}
@@ -187,6 +196,12 @@ export function AttachmentZoomModal({
         {kind === 'image' && (
           <p className="attachment-zoom-hint">
             Usa la rueda del mouse o los botones +/− para hacer zoom. Arrastra para mover la imagen.
+          </p>
+        )}
+
+        {kind === 'pdf' && (
+          <p className="attachment-zoom-hint">
+            Usa los controles del visor PDF del navegador para acercar o alejar.
           </p>
         )}
       </div>

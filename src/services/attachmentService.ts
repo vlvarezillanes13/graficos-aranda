@@ -31,7 +31,8 @@ export async function fetchFileBlob(
   fileId: number,
   fileName: string,
 ): Promise<{ blob: Blob; contentType: string }> {
-  const response = await fetch(`/api/itsm-file/${fileId}`, {
+  const params = new URLSearchParams({ fileName })
+  const response = await fetch(`/api/itsm-file/${fileId}?${params}`, {
     headers: getAuthHeaders(),
   })
 
@@ -39,13 +40,35 @@ export async function fetchFileBlob(
     throw new Error(`No se pudo abrir ${fileName}`)
   }
 
-  const contentType =
-    response.headers.get('content-type') ?? guessContentType(fileName)
+  const contentType = resolveContentType(
+    fileName,
+    response.headers.get('content-type') ?? '',
+  )
+
+  const rawBlob = await response.blob()
+  const blob =
+    rawBlob.type === contentType
+      ? rawBlob
+      : new Blob([await rawBlob.arrayBuffer()], { type: contentType })
 
   return {
-    blob: await response.blob(),
+    blob,
     contentType,
   }
+}
+
+function resolveContentType(fileName: string, headerType: string): string {
+  const normalized = headerType.split(';')[0]?.trim().toLowerCase() ?? ''
+
+  if (
+    normalized &&
+    normalized !== 'application/octet-stream' &&
+    normalized !== 'binary/octet-stream'
+  ) {
+    return normalized
+  }
+
+  return guessContentType(fileName)
 }
 
 function guessContentType(fileName: string): string {
@@ -76,9 +99,16 @@ export function getPreviewKind(
   fileName: string,
   contentType: string,
 ): PreviewKind {
-  if (contentType.startsWith('image/')) return 'image'
-  if (contentType === 'application/pdf') return 'pdf'
-  if (contentType.startsWith('text/')) return 'text'
+  const normalized = contentType.split(';')[0]?.trim().toLowerCase() ?? ''
+
+  if (normalized.startsWith('image/')) return 'image'
+  if (
+    normalized === 'application/pdf' ||
+    normalized === 'application/x-pdf'
+  ) {
+    return 'pdf'
+  }
+  if (normalized.startsWith('text/')) return 'text'
 
   const extension = fileName.split('.').pop()?.toLowerCase()
   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(extension ?? '')) {

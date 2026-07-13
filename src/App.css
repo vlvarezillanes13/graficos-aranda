@@ -743,12 +743,18 @@ th button {
   transition: opacity 0.15s;
 }
 
-.attachment-preview-frame {
+.attachment-preview-frame,
+.attachment-zoom-frame {
   display: block;
   width: 100%;
   min-height: 420px;
   border: none;
   background: white;
+}
+
+.attachment-zoom-frame {
+  min-height: 0;
+  height: 100%;
 }
 
 .attachment-preview-fallback {
@@ -855,14 +861,6 @@ th button {
   transform-origin: center center;
   user-select: none;
   pointer-events: none;
-}
-
-.attachment-zoom-frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: white;
 }
 
 .attachment-zoom-fallback {

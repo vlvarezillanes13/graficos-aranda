@@ -284,8 +284,9 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
               )}
 
               {preview.kind === 'pdf' && (
-                <iframe
+                <embed
                   src={preview.url}
+                  type="application/pdf"
                   title={preview.name}
                   className="attachment-preview-frame"
                 />

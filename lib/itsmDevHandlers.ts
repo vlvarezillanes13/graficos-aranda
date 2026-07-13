@@ -51,6 +51,7 @@ async function proxyBinaryGet(
   request: IncomingMessage,
   response: ServerResponse,
   targetUrl: string,
+  fileName?: string | null,
 ): Promise<void> {
   const user = await requireSessionFromAuthHeader(request.headers.authorization)
   if (!user) {
@@ -65,11 +66,13 @@ async function proxyBinaryGet(
     })
 
     const buffer = Buffer.from(await upstream.arrayBuffer())
-    response.statusCode = upstream.status
-    response.setHeader(
-      'Content-Type',
-      upstream.headers.get('content-type') ?? 'application/octet-stream',
+    const contentType = resolveFileContentType(
+      upstream.headers.get('content-type'),
+      fileName ?? undefined,
     )
+
+    response.statusCode = upstream.status
+    response.setHeader('Content-Type', contentType)
 
     const contentDisposition = upstream.headers.get('content-disposition')
     if (contentDisposition) {
@@ -86,6 +89,45 @@ async function proxyBinaryGet(
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
     sendJson(response, 502, { error: message })
+  }
+}
+
+function resolveFileContentType(
+  upstreamType: string | null,
+  fileName?: string,
+): string {
+  const normalized = upstreamType?.split(';')[0]?.trim().toLowerCase() ?? ''
+
+  if (
+    normalized &&
+    normalized !== 'application/octet-stream' &&
+    normalized !== 'binary/octet-stream'
+  ) {
+    return normalized
+  }
+
+  if (!fileName) {
+    return normalized || 'application/octet-stream'
+  }
+
+  const extension = fileName.split('.').pop()?.toLowerCase()
+
+  switch (extension) {
+    case 'pdf':
+      return 'application/pdf'
+    case 'png':
+      return 'image/png'
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'gif':
+      return 'image/gif'
+    case 'webp':
+      return 'image/webp'
+    case 'txt':
+      return 'text/plain'
+    default:
+      return normalized || 'application/octet-stream'
   }
 }
 
@@ -109,13 +151,15 @@ export async function handleItsmFile(
   request: IncomingMessage,
   response: ServerResponse,
   fileId: string,
+  requestUrl: URL,
 ): Promise<void> {
   if (!fileId) {
     sendJson(response, 400, { error: 'fileId es obligatorio' })
     return
   }
 
-  await proxyBinaryGet(request, response, buildFileUrl(fileId))
+  const fileName = requestUrl.searchParams.get('fileName')
+  await proxyBinaryGet(request, response, buildFileUrl(fileId), fileName)
 }
 
 export function isProtectedItsmApi(pathname: string, method?: string): boolean {

@@ -71,7 +71,7 @@ function createAuthMiddleware() {
     if (pathname.startsWith('/api/itsm-file/') && req.method === 'GET') {
       const fileId = pathname.replace('/api/itsm-file/', '')
       void handleItsmAuthGuard(req, res).then((allowed) => {
-        if (allowed) void handleItsmFile(req, res, fileId)
+        if (allowed) void handleItsmFile(req, res, fileId, requestUrl)
       })
       return
     }
