@@ -1,6 +1,14 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/itsm-file/[id].ts": {
+      "runtime": "nodejs20.x"
+    },
+    "api/itsm-item-files.ts": {
+      "runtime": "nodejs20.x"
+    }
+  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",

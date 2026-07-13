@@ -3,46 +3,8 @@ import {
   buildFileUrl,
   buildItsmHeaders,
   requireSessionFromAuthHeader,
-} from '../../lib/itsmUpstream.js'
-
-function resolveFileContentType(
-  upstreamType: string | null,
-  fileName?: string,
-): string {
-  const normalized = upstreamType?.split(';')[0]?.trim().toLowerCase() ?? ''
-
-  if (
-    normalized &&
-    normalized !== 'application/octet-stream' &&
-    normalized !== 'binary/octet-stream'
-  ) {
-    return normalized
-  }
-
-  if (!fileName) {
-    return normalized || 'application/octet-stream'
-  }
-
-  const extension = fileName.split('.').pop()?.toLowerCase()
-
-  switch (extension) {
-    case 'pdf':
-      return 'application/pdf'
-    case 'png':
-      return 'image/png'
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg'
-    case 'gif':
-      return 'image/gif'
-    case 'webp':
-      return 'image/webp'
-    case 'txt':
-      return 'text/plain'
-    default:
-      return normalized || 'application/octet-stream'
-  }
-}
+  resolveFileContentType,
+} from '../../lib/itsmApi.js'
 
 export default async function handler(
   req: VercelRequest,

@@ -3,7 +3,7 @@ import {
   buildItemFilesUrl,
   buildItsmHeaders,
   requireSessionFromAuthHeader,
-} from '../lib/itsmUpstream.js'
+} from '../lib/itsmApi.js'
 
 export default async function handler(
   req: VercelRequest,

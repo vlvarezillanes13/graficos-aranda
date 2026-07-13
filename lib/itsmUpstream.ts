@@ -1,7 +1,24 @@
-import { extractBearerToken, verifySessionToken } from './auth.js'
+import {
+  buildFileUrl,
+  buildItemFilesUrl,
+  buildItsmHeaders,
+  getItsmAuthCookie as getProdItsmAuthCookie,
+  getItsmAuthToken as getProdItsmAuthToken,
+  ITSM_ORIGIN,
+  ITSM_REFERER,
+  requireSession,
+  requireSessionFromAuthHeader,
+} from './itsmApi.js'
 
-export const ITSM_ORIGIN = 'https://itsm.sonda.com'
-export const ITSM_REFERER = `${ITSM_ORIGIN}/asmsspecialist/index.html`
+export {
+  buildFileUrl,
+  buildItemFilesUrl,
+  buildItsmHeaders,
+  ITSM_ORIGIN,
+  ITSM_REFERER,
+  requireSession,
+  requireSessionFromAuthHeader,
+}
 
 interface ItsmRuntimeEnv {
   token?: string
@@ -27,21 +44,18 @@ export function configureItsmRuntimeEnv(env: ItsmRuntimeEnv): void {
 export function getItsmAuthToken(): string | undefined {
   return (
     runtimeEnv?.token ??
-    process.env.ITSM_AUTH_TOKEN ??
-    process.env.VITE_ITSM_AUTH_TOKEN
-  )?.trim()
+    getProdItsmAuthToken()
+  )
 }
 
 export function getItsmAuthCookie(): string | undefined {
-  const raw =
+  return (
     runtimeEnv?.cookie ??
-    stripCookieValue(process.env.ITSM_AUTH_COOKIE) ??
-    stripCookieValue(process.env.VITE_ITSM_AUTH_COOKIE)
-
-  return raw
+    getProdItsmAuthCookie()
+  )
 }
 
-export function buildItsmHeaders(
+export function buildItsmDevHeaders(
   contentType = 'application/json',
 ): Record<string, string> {
   const token = getItsmAuthToken()
@@ -66,42 +80,4 @@ export function buildItsmHeaders(
   }
 
   return headers
-}
-
-export async function requireSession(
-  request: Request,
-): Promise<string | Response> {
-  const sessionToken = extractBearerToken(request.headers.get('Authorization'))
-  const user = await verifySessionToken(sessionToken)
-
-  if (!user) {
-    return Response.json(
-      { error: 'Sesión no válida o expirada' },
-      { status: 401 },
-    )
-  }
-
-  return user
-}
-
-export async function requireSessionFromAuthHeader(
-  authorization: string | undefined,
-): Promise<string | null> {
-  const sessionToken = extractBearerToken(authorization)
-  return verifySessionToken(sessionToken)
-}
-
-export function buildItemFilesUrl(itemId: string, itemType: string): string {
-  const params = new URLSearchParams({
-    itemType,
-    uploadType: '0',
-    additionalFieldId: '',
-    validate: 'true',
-  })
-
-  return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/${itemId}/files?${params}`
-}
-
-export function buildFileUrl(fileId: string): string {
-  return `${ITSM_ORIGIN}/asmsconsole/api/v9/file/${fileId}`
 }
