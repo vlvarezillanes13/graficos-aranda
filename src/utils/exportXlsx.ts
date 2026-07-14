@@ -5,6 +5,7 @@ import { formatDate } from './aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
+  formatTestAprobadoDate,
   formatUltimaIteracionDate,
 } from './deliveryDates'
 
@@ -61,6 +62,7 @@ function itemToRow(
     'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
     'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
     'Fecha Gestión AFC': formatUltimaIteracionDate(item, deliveryDatesById),
+    'Fecha Test Aprobado': formatTestAprobadoDate(item, deliveryDatesById),
     ...row,
   }
 }
@@ -90,6 +92,7 @@ function itemToGridRow(
     'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
     'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
     'Fecha Gestión AFC': formatUltimaIteracionDate(item, deliveryDatesById),
+    'Fecha Test Aprobado': formatTestAprobadoDate(item, deliveryDatesById),
   }
 }
 

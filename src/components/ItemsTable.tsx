@@ -5,9 +5,11 @@ import { formatDate } from '../utils/aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
+  formatTestAprobadoDate,
   formatUltimaIteracionDate,
   getDeliveryDateTimestamp,
   getDeliveryTestTimestamp,
+  getTestAprobadoTimestamp,
   getUltimaIteracionTimestamp,
 } from '../utils/deliveryDates'
 
@@ -25,6 +27,7 @@ type SortKey =
   | 'deliveryDate'
   | 'deliveryTestDate'
   | 'ultimaIteracion'
+  | 'testAprobado'
   | 'stateName'
   | 'priorityName'
 
@@ -45,6 +48,10 @@ function getSortValue(
 
   if (key === 'ultimaIteracion') {
     return getUltimaIteracionTimestamp(item, deliveryDatesById) ?? 0
+  }
+
+  if (key === 'testAprobado') {
+    return getTestAprobadoTimestamp(item, deliveryDatesById) ?? 0
   }
 
   return item[key]
@@ -164,12 +171,20 @@ export function ItemsTable({
                   Fecha Gestión AFC{sortIndicator('ultimaIteracion')}
                 </button>
               </th>
+              <th>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('testAprobado')}
+                >
+                  Fecha Test Aprobado{sortIndicator('testAprobado')}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={11} className="empty-row">
+                <td colSpan={12} className="empty-row">
                   {emptyMessage}
                 </td>
               </tr>
@@ -199,6 +214,7 @@ export function ItemsTable({
                   <td>{formatDeliveryDate(item, deliveryDatesById)}</td>
                   <td>{formatDeliveryTestDate(item, deliveryDatesById)}</td>
                   <td>{formatUltimaIteracionDate(item, deliveryDatesById)}</td>
+                  <td>{formatTestAprobadoDate(item, deliveryDatesById)}</td>
                 </tr>
               ))
             )}

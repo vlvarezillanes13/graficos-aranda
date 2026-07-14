@@ -23,6 +23,13 @@ export function formatUltimaIteracionDate(
   return formatDate(datesById?.get(item.id)?.ultimaIteracion ?? null)
 }
 
+export function formatTestAprobadoDate(
+  item: IncidentItem,
+  datesById?: Map<number, ItemDeliveryDates>,
+): string {
+  return formatDate(datesById?.get(item.id)?.testAprobado ?? null)
+}
+
 export function getDeliveryDateTimestamp(
   item: IncidentItem,
   datesById?: Map<number, ItemDeliveryDates>,
@@ -42,4 +49,11 @@ export function getUltimaIteracionTimestamp(
   datesById?: Map<number, ItemDeliveryDates>,
 ): number | null {
   return datesById?.get(item.id)?.ultimaIteracion ?? null
+}
+
+export function getTestAprobadoTimestamp(
+  item: IncidentItem,
+  datesById?: Map<number, ItemDeliveryDates>,
+): number | null {
+  return datesById?.get(item.id)?.testAprobado ?? null
 }

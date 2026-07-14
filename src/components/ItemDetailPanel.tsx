@@ -6,6 +6,7 @@ import { formatDate, getProgressTone } from '../utils/aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
+  formatTestAprobadoDate,
   formatUltimaIteracionDate,
 } from '../utils/deliveryDates'
 import {
@@ -211,6 +212,10 @@ export function ItemDetailPanel({
           <div>
             <dt>Fecha Gestión AFC</dt>
             <dd>{formatUltimaIteracionDate(item, deliveryDatesById)}</dd>
+          </div>
+          <div>
+            <dt>Fecha Test Aprobado</dt>
+            <dd>{formatTestAprobadoDate(item, deliveryDatesById)}</dd>
           </div>
           <div>
             <dt>Modificación</dt>

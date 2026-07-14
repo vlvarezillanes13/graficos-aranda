@@ -21,4 +21,5 @@ export interface ItemDeliveryDates {
   deliveryDate: number | null
   deliveryTestDate: number | null
   ultimaIteracion: number | null
+  testAprobado: number | null
 }
