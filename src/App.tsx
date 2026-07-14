@@ -15,6 +15,7 @@ import {
   verifySession,
 } from './services/authService'
 import { fetchItsmItems } from './services/itsmService'
+import type { FetchResult } from './types/itsm'
 import type { GroupField, IncidentItem } from './types/incident'
 import {
   filterItems,
@@ -32,6 +33,7 @@ import {
 import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
 import { filterUrgentItems, readUrgentCaseIds } from './utils/urgentCases'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
+import { useBackgroundRefresh } from './hooks/useBackgroundRefresh'
 import { useDeliveryDates } from './hooks/useDeliveryDates'
 import {
   clearDeliveryDatesCache,
@@ -78,6 +80,16 @@ function App() {
     setUrgentIds(readUrgentCaseIds())
   }, [authenticated])
 
+  const applyFetchResult = useCallback((result: FetchResult) => {
+    setItems(result.items)
+    setTotalItems(result.totalItems)
+    setFetchedAt(result.fetchedAt)
+    setSelectedItem((current) => {
+      if (!current) return null
+      return result.items.find((item) => item.id === current.id) ?? current
+    })
+  }, [])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -85,9 +97,7 @@ function App() {
     try {
       clearDeliveryDatesCache()
       const result = await fetchItsmItems()
-      setItems(result.items)
-      setTotalItems(result.totalItems)
-      setFetchedAt(result.fetchedAt)
+      applyFetchResult(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setItems([])
@@ -95,7 +105,16 @@ function App() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [applyFetchResult])
+
+  const refreshDataInBackground = useCallback(async () => {
+    try {
+      const result = await fetchItsmItems()
+      applyFetchResult(result)
+    } catch {
+      // Mantener los datos actuales si el refresco en segundo plano falla.
+    }
+  }, [applyFetchResult])
 
   useEffect(() => {
     void verifySession().then((valid) => {
@@ -108,6 +127,11 @@ function App() {
     if (!authenticated) return
     void loadData()
   }, [authenticated, loadData])
+
+  useBackgroundRefresh(
+    refreshDataInBackground,
+    authenticated && !loading && items.length > 0,
+  )
 
   const filteredItems = useMemo(
     () => filterItems(items, filters),
