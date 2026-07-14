@@ -76,7 +76,7 @@ export function UrgentCasesModal({
     const ids = readUrgentCaseIds()
     applyIds(ids)
     if (ids.length === 0) {
-      setInputError('No hay IDs guardados en sessionStorage (ARANDA_URGENTES)')
+      setInputError('No hay IDs guardados en sessionStorage (graficos_urgent_cases)')
     }
   }
 

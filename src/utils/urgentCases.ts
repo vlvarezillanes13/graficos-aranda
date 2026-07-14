@@ -1,6 +1,7 @@
 import type { IncidentItem } from '../types/incident'
 
-export const ARANDA_URGENTES_KEY = 'ARANDA_URGENTES'
+export const URGENT_CASES_KEY = 'graficos_urgent_cases'
+const LEGACY_URGENT_CASES_KEY = 'ARANDA_URGENTES'
 
 export function parseUrgentCaseIds(raw: string | null): string[] {
   if (!raw?.trim()) return []
@@ -27,7 +28,11 @@ export function parseUrgentCaseIds(raw: string | null): string[] {
 }
 
 export function readUrgentCaseIds(): string[] {
-  return parseUrgentCaseIds(sessionStorage.getItem(ARANDA_URGENTES_KEY))
+  const raw =
+    sessionStorage.getItem(URGENT_CASES_KEY) ??
+    sessionStorage.getItem(LEGACY_URGENT_CASES_KEY)
+
+  return parseUrgentCaseIds(raw)
 }
 
 export function formatUrgentCaseIds(ids: string[]): string {
@@ -40,11 +45,13 @@ export function writeUrgentCaseIds(ids: string[]): void {
     .filter(Boolean)
 
   if (normalized.length === 0) {
-    sessionStorage.removeItem(ARANDA_URGENTES_KEY)
+    sessionStorage.removeItem(URGENT_CASES_KEY)
+    sessionStorage.removeItem(LEGACY_URGENT_CASES_KEY)
     return
   }
 
-  sessionStorage.setItem(ARANDA_URGENTES_KEY, formatUrgentCaseIds(normalized))
+  sessionStorage.setItem(URGENT_CASES_KEY, formatUrgentCaseIds(normalized))
+  sessionStorage.removeItem(LEGACY_URGENT_CASES_KEY)
 }
 
 export function filterUrgentItems(
