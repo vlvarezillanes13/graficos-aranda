@@ -6,7 +6,7 @@ import { formatDate, getProgressTone } from '../utils/aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
-  formatPendingAfpDate,
+  formatUltimaIteracionDate,
 } from '../utils/deliveryDates'
 import {
   fetchFileBlob,
@@ -209,8 +209,8 @@ export function ItemDetailPanel({
             <dd>{formatDeliveryTestDate(item, deliveryDatesById)}</dd>
           </div>
           <div>
-            <dt>Fecha Pendiente AFP</dt>
-            <dd>{formatPendingAfpDate(item, deliveryDatesById)}</dd>
+            <dt>Fecha Ultima Iteración</dt>
+            <dd>{formatUltimaIteracionDate(item, deliveryDatesById)}</dd>
           </div>
           <div>
             <dt>Modificación</dt>

@@ -5,10 +5,10 @@ import { formatDate } from '../utils/aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
-  formatPendingAfpDate,
+  formatUltimaIteracionDate,
   getDeliveryDateTimestamp,
   getDeliveryTestTimestamp,
-  getPendingAfpTimestamp,
+  getUltimaIteracionTimestamp,
 } from '../utils/deliveryDates'
 
 interface ItemsTableProps {
@@ -24,7 +24,7 @@ type SortKey =
   | 'openedDate'
   | 'deliveryDate'
   | 'deliveryTestDate'
-  | 'pendingAfpDate'
+  | 'ultimaIteracion'
   | 'stateName'
   | 'priorityName'
 
@@ -43,8 +43,8 @@ function getSortValue(
     return getDeliveryTestTimestamp(item, deliveryDatesById) ?? 0
   }
 
-  if (key === 'pendingAfpDate') {
-    return getPendingAfpTimestamp(item, deliveryDatesById) ?? 0
+  if (key === 'ultimaIteracion') {
+    return getUltimaIteracionTimestamp(item, deliveryDatesById) ?? 0
   }
 
   return item[key]
@@ -159,9 +159,9 @@ export function ItemsTable({
               <th>
                 <button
                   type="button"
-                  onClick={() => toggleSort('pendingAfpDate')}
+                  onClick={() => toggleSort('ultimaIteracion')}
                 >
-                  Fecha Pendiente AFP{sortIndicator('pendingAfpDate')}
+                  Fecha Ultima Iteración{sortIndicator('ultimaIteracion')}
                 </button>
               </th>
             </tr>
@@ -198,7 +198,7 @@ export function ItemsTable({
                   <td>{formatDate(item.openedDate)}</td>
                   <td>{formatDeliveryDate(item, deliveryDatesById)}</td>
                   <td>{formatDeliveryTestDate(item, deliveryDatesById)}</td>
-                  <td>{formatPendingAfpDate(item, deliveryDatesById)}</td>
+                  <td>{formatUltimaIteracionDate(item, deliveryDatesById)}</td>
                 </tr>
               ))
             )}

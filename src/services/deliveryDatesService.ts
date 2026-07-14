@@ -7,7 +7,10 @@ import { getAuthHeaders } from './authService'
 
 const DELIVERY_FIELD_NAMES = new Set(['fecha de entrega'])
 const DELIVERY_TEST_FIELD_NAMES = new Set(['fecha entrega test'])
-const PENDING_AFP_FIELD_NAMES = new Set(['fecha pendiente afp'])
+const ULTIMA_ITERACION_FIELD_NAMES = new Set([
+  'fecha ultima iteración',
+  'fecha ultima iteracion',
+])
 const FETCH_CONCURRENCY = 6
 
 const cache = new Map<number, ItemDeliveryDates>()
@@ -51,7 +54,7 @@ export function extractDeliveryDatesFromFields(
 ): ItemDeliveryDates {
   let deliveryDate: number | null = null
   let deliveryTestDate: number | null = null
-  let pendingAfpDate: number | null = null
+  let ultimaIteracion: number | null = null
 
   for (const field of fields) {
     const label = normalizeFieldName(field.name || field.identifier || '')
@@ -68,19 +71,19 @@ export function extractDeliveryDatesFromFields(
       continue
     }
 
-    if (PENDING_AFP_FIELD_NAMES.has(label)) {
-      pendingAfpDate = timestamp
+    if (ULTIMA_ITERACION_FIELD_NAMES.has(label)) {
+      ultimaIteracion = timestamp
     }
   }
 
-  return { deliveryDate, deliveryTestDate, pendingAfpDate }
+  return { deliveryDate, deliveryTestDate, ultimaIteracion }
 }
 
 export function createEmptyDeliveryDates(): ItemDeliveryDates {
   return {
     deliveryDate: null,
     deliveryTestDate: null,
-    pendingAfpDate: null,
+    ultimaIteracion: null,
   }
 }
 

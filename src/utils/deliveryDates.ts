@@ -16,11 +16,11 @@ export function formatDeliveryTestDate(
   return formatDate(datesById?.get(item.id)?.deliveryTestDate ?? null)
 }
 
-export function formatPendingAfpDate(
+export function formatUltimaIteracionDate(
   item: IncidentItem,
   datesById?: Map<number, ItemDeliveryDates>,
 ): string {
-  return formatDate(datesById?.get(item.id)?.pendingAfpDate ?? null)
+  return formatDate(datesById?.get(item.id)?.ultimaIteracion ?? null)
 }
 
 export function getDeliveryDateTimestamp(
@@ -37,9 +37,9 @@ export function getDeliveryTestTimestamp(
   return datesById?.get(item.id)?.deliveryTestDate ?? null
 }
 
-export function getPendingAfpTimestamp(
+export function getUltimaIteracionTimestamp(
   item: IncidentItem,
   datesById?: Map<number, ItemDeliveryDates>,
 ): number | null {
-  return datesById?.get(item.id)?.pendingAfpDate ?? null
+  return datesById?.get(item.id)?.ultimaIteracion ?? null
 }

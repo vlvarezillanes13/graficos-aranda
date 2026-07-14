@@ -20,5 +20,5 @@ export interface AdditionalFieldsRequest {
 export interface ItemDeliveryDates {
   deliveryDate: number | null
   deliveryTestDate: number | null
-  pendingAfpDate: number | null
+  ultimaIteracion: number | null
 }
