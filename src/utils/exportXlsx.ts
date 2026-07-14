@@ -47,6 +47,7 @@ function formatExportValue(
 
 function itemToRow(
   item: IncidentItem,
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
 ): Record<string, string | number | boolean | null> {
   const row = Object.fromEntries(
     (Object.keys(item) as (keyof IncidentItem)[]).map((key) => [
@@ -57,12 +58,20 @@ function itemToRow(
 
   return {
     estadoTicket: item.isClosed ? 'Cerrado' : 'Abierto',
+    'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
+    'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
+    'Fecha Pendiente AFP': formatPendingAfpDate(item, deliveryDatesById),
     ...row,
   }
 }
 
-function createWorksheet(items: IncidentItem[]) {
-  return XLSX.utils.json_to_sheet(items.map(itemToRow))
+function createWorksheet(
+  items: IncidentItem[],
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
+) {
+  return XLSX.utils.json_to_sheet(
+    items.map((item) => itemToRow(item, deliveryDatesById)),
+  )
 }
 
 function itemToGridRow(
@@ -104,9 +113,21 @@ export function downloadIncidentsXlsx(
   const closedItems = items.filter((item) => item.isClosed)
   const workbook = XLSX.utils.book_new()
 
-  XLSX.utils.book_append_sheet(workbook, createWorksheet(items), 'Todos')
-  XLSX.utils.book_append_sheet(workbook, createWorksheet(openItems), 'Abiertos')
-  XLSX.utils.book_append_sheet(workbook, createWorksheet(closedItems), 'Cerrados')
+  XLSX.utils.book_append_sheet(
+    workbook,
+    createWorksheet(items, deliveryDatesById),
+    'Todos',
+  )
+  XLSX.utils.book_append_sheet(
+    workbook,
+    createWorksheet(openItems, deliveryDatesById),
+    'Abiertos',
+  )
+  XLSX.utils.book_append_sheet(
+    workbook,
+    createWorksheet(closedItems, deliveryDatesById),
+    'Cerrados',
+  )
 
   const dateStamp = (fetchedAt ?? new Date()).toISOString().slice(0, 10)
   XLSX.writeFile(
