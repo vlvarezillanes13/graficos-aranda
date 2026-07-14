@@ -87,3 +87,28 @@ export function getExportCounts(items: IncidentItem[]) {
     closed,
   }
 }
+
+export function downloadUrgentCasesXlsx(
+  items: IncidentItem[],
+  missingIds: string[] = [],
+  fetchedAt?: Date | null,
+): void {
+  if (items.length === 0 && missingIds.length === 0) return
+
+  const workbook = XLSX.utils.book_new()
+
+  if (items.length > 0) {
+    XLSX.utils.book_append_sheet(workbook, createWorksheet(items), 'Urgentes')
+  }
+
+  if (missingIds.length > 0) {
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(missingIds.map((id) => ({ idByProject: id }))),
+      'No encontrados',
+    )
+  }
+
+  const dateStamp = (fetchedAt ?? new Date()).toISOString().slice(0, 10)
+  XLSX.writeFile(workbook, `itsm-casos-urgentes-${dateStamp}.xlsx`)
+}

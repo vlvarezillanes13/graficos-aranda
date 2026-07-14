@@ -389,6 +389,7 @@ function App() {
         open={urgentModalOpen}
         items={items}
         urgentIds={urgentIds}
+        fetchedAt={fetchedAt}
         onUrgentIdsChange={setUrgentIds}
         onClose={() => setUrgentModalOpen(false)}
         onSelect={setSelectedItem}

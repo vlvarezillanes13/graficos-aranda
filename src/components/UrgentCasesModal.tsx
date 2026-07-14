@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { IncidentItem } from '../types/incident'
+import { downloadUrgentCasesXlsx } from '../utils/exportXlsx'
 import {
   filterUrgentItems,
   formatUrgentCaseIds,
@@ -14,6 +15,7 @@ interface UrgentCasesModalProps {
   open: boolean
   items: IncidentItem[]
   urgentIds: string[]
+  fetchedAt?: Date | null
   onUrgentIdsChange: (ids: string[]) => void
   onClose: () => void
   onSelect: (item: IncidentItem) => void
@@ -23,6 +25,7 @@ export function UrgentCasesModal({
   open,
   items,
   urgentIds,
+  fetchedAt,
   onUrgentIdsChange,
   onClose,
   onSelect,
@@ -123,6 +126,21 @@ export function UrgentCasesModal({
                 <strong>{urgentIds.length}</strong> encontrados
               </span>
             )}
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() =>
+                downloadUrgentCasesXlsx(urgentItems, missingIds, fetchedAt)
+              }
+              disabled={urgentItems.length === 0 && missingIds.length === 0}
+              title={
+                missingIds.length > 0
+                  ? `${urgentItems.length} encontrados, ${missingIds.length} no en datos`
+                  : `${urgentItems.length} caso${urgentItems.length === 1 ? '' : 's'}`
+              }
+            >
+              Descargar XLSX
+            </button>
             <button
               type="button"
               className="ghost-button"
