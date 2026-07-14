@@ -5,6 +5,7 @@ import { formatDate } from '../utils/aggregations'
 interface ItemsTableProps {
   items: IncidentItem[]
   onSelect?: (item: IncidentItem) => void
+  emptyMessage?: string
 }
 
 type SortKey =
@@ -16,7 +17,11 @@ type SortKey =
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
-export function ItemsTable({ items, onSelect }: ItemsTableProps) {
+export function ItemsTable({
+  items,
+  onSelect,
+  emptyMessage = 'No hay registros con los filtros actuales',
+}: ItemsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('openedDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(1)
@@ -114,7 +119,7 @@ export function ItemsTable({ items, onSelect }: ItemsTableProps) {
             {sortedItems.length === 0 ? (
               <tr>
                 <td colSpan={9} className="empty-row">
-                  No hay registros con los filtros actuales
+                  {emptyMessage}
                 </td>
               </tr>
             ) : (

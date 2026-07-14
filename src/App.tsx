@@ -8,6 +8,7 @@ import { LoadingState } from './components/LoadingState'
 import { LoginPage } from './components/LoginPage'
 import { ResponsibleStateMatrixTable } from './components/ResponsibleStateMatrix'
 import { SummaryCards } from './components/SummaryCards'
+import { UrgentCasesModal } from './components/UrgentCasesModal'
 import {
   getSessionUsername,
   logout,
@@ -29,6 +30,7 @@ import {
   type MatrixSelection,
 } from './utils/aggregations'
 import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
+import { filterUrgentItems, readUrgentCaseIds } from './utils/urgentCases'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
 import './App.css'
 
@@ -62,6 +64,13 @@ function App() {
   const [customField, setCustomField] = useState<GroupField>('responsibleName')
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
   const [selectedItem, setSelectedItem] = useState<IncidentItem | null>(null)
+  const [urgentModalOpen, setUrgentModalOpen] = useState(false)
+  const [urgentIds, setUrgentIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!authenticated) return
+    setUrgentIds(readUrgentCaseIds())
+  }, [authenticated])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -128,6 +137,10 @@ function App() {
     customField
 
   const exportCounts = useMemo(() => getExportCounts(items), [items])
+  const urgentCount = useMemo(
+    () => filterUrgentItems(items, urgentIds).length,
+    [items, urgentIds],
+  )
   const username = getSessionUsername()
 
   const handleMatrixSelect = useCallback((selection: MatrixSelection) => {
@@ -160,6 +173,8 @@ function App() {
     setFetchedAt(null)
     setFilters(DEFAULT_FILTERS)
     setSelectedItem(null)
+    setUrgentIds([])
+    setUrgentModalOpen(false)
   }, [])
 
   useIdleTimeout(handleLogout, authenticated)
@@ -214,6 +229,14 @@ function App() {
               title={`${exportCounts.open} abiertos y ${exportCounts.closed} cerrados`}
             >
               Descargar XLSX ({exportCounts.open}+{exportCounts.closed})
+            </button>
+            <button
+              type="button"
+              className="secondary-button urgent-open-button"
+              onClick={() => setUrgentModalOpen(true)}
+              disabled={loading}
+            >
+              Casos urgentes{urgentCount > 0 ? ` (${urgentCount})` : ''}
             </button>
             <button type="button" onClick={() => void loadData()} disabled={loading}>
               {loading ? 'Actualizando...' : 'Actualizar datos'}
@@ -361,6 +384,15 @@ function App() {
           </div>
         )}
       </main>
+
+      <UrgentCasesModal
+        open={urgentModalOpen}
+        items={items}
+        urgentIds={urgentIds}
+        onUrgentIdsChange={setUrgentIds}
+        onClose={() => setUrgentModalOpen(false)}
+        onSelect={setSelectedItem}
+      />
 
       <ItemDetailPanel item={selectedItem} onClose={() => setSelectedItem(null)} />
     </div>

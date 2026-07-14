@@ -33,8 +33,9 @@ function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
           proxyReq.setHeader('x-authorization', token)
         }
 
-        if (env.VITE_ITSM_AUTH_COOKIE) {
-          proxyReq.setHeader('Cookie', env.VITE_ITSM_AUTH_COOKIE)
+        const cookie = env.ITSM_AUTH_COOKIE ?? env.VITE_ITSM_AUTH_COOKIE
+        if (cookie) {
+          proxyReq.setHeader('Cookie', cookie)
         }
 
         const authorization = req.headers.authorization

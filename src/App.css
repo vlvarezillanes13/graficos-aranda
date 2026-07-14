@@ -281,6 +281,127 @@
   margin-top: 1rem;
 }
 
+.urgent-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgb(15 23 42 / 55%);
+  backdrop-filter: blur(4px);
+}
+
+.urgent-modal {
+  width: min(96vw, 1200px);
+  height: min(92vh, 860px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgb(185 28 28 / 18%);
+}
+
+.urgent-modal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid #fee2e2;
+  background: #fff5f5;
+}
+
+.urgent-modal-heading h2 {
+  margin: 0 0 0.25rem;
+  color: #b91c1c;
+  font-size: 1.15rem;
+}
+
+.urgent-modal-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.urgent-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+}
+
+.urgent-modal-stats {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.urgent-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.urgent-input-panel {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid #fee2e2;
+  border-radius: 12px;
+  background: #fffafb;
+}
+
+.urgent-input-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.urgent-input {
+  width: 100%;
+  min-height: 6.5rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.urgent-input:focus {
+  outline: 2px solid #fca5a5;
+  outline-offset: 1px;
+  border-color: #f87171;
+}
+
+.urgent-input-error {
+  margin: 0.5rem 0 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.urgent-input-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.urgent-open-button {
+  border-color: #fecaca;
+  background: rgb(254 242 242 / 15%);
+}
+
+.urgent-missing-alert {
+  margin-bottom: 1rem;
+}
+
 .custom-controls {
   margin-bottom: 1rem;
 }
@@ -767,7 +888,7 @@ th button {
   background: rgb(15 23 42 / 45%);
   display: flex;
   justify-content: flex-end;
-  z-index: 20;
+  z-index: 50;
   backdrop-filter: blur(3px);
 }
 
