@@ -129,15 +129,9 @@ export function UrgentCasesModal({
             <button
               type="button"
               className="ghost-button"
-              onClick={() =>
-                downloadUrgentCasesXlsx(urgentItems, missingIds, fetchedAt)
-              }
-              disabled={urgentItems.length === 0 && missingIds.length === 0}
-              title={
-                missingIds.length > 0
-                  ? `${urgentItems.length} encontrados, ${missingIds.length} no en datos`
-                  : `${urgentItems.length} caso${urgentItems.length === 1 ? '' : 's'}`
-              }
+              onClick={() => downloadUrgentCasesXlsx(urgentItems, fetchedAt)}
+              disabled={urgentItems.length === 0}
+              title={`${urgentItems.length} caso${urgentItems.length === 1 ? '' : 's'}`}
             >
               Descargar XLSX
             </button>

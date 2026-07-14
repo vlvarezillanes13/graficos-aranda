@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { IncidentItem } from '../types/incident'
+import { formatDate } from './aggregations'
 
 const DATE_FIELDS = new Set([
   'closedDate',
@@ -58,6 +59,26 @@ function createWorksheet(items: IncidentItem[]) {
   return XLSX.utils.json_to_sheet(items.map(itemToRow))
 }
 
+function itemToGridRow(item: IncidentItem) {
+  return {
+    ID: item.idByProject,
+    Asunto: item.subject,
+    Tipo: item.itemTypeName,
+    Grupo: item.groupName,
+    Responsable: item.responsibleName,
+    Estado: item.stateName,
+    Prioridad: item.priorityName,
+    Apertura: formatDate(item.openedDate),
+    'Fecha de Entrega': formatDate(
+      item.expectedDate > 0 ? item.expectedDate : null,
+    ),
+  }
+}
+
+function createGridWorksheet(items: IncidentItem[]) {
+  return XLSX.utils.json_to_sheet(items.map(itemToGridRow))
+}
+
 export function downloadIncidentsXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
@@ -90,24 +111,20 @@ export function getExportCounts(items: IncidentItem[]) {
 
 export function downloadUrgentCasesXlsx(
   items: IncidentItem[],
-  missingIds: string[] = [],
   fetchedAt?: Date | null,
 ): void {
-  if (items.length === 0 && missingIds.length === 0) return
+  if (items.length === 0) return
 
+  const sortedItems = [...items].sort(
+    (a, b) => b.openedDate - a.openedDate,
+  )
   const workbook = XLSX.utils.book_new()
 
-  if (items.length > 0) {
-    XLSX.utils.book_append_sheet(workbook, createWorksheet(items), 'Urgentes')
-  }
-
-  if (missingIds.length > 0) {
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(missingIds.map((id) => ({ idByProject: id }))),
-      'No encontrados',
-    )
-  }
+  XLSX.utils.book_append_sheet(
+    workbook,
+    createGridWorksheet(sortedItems),
+    'Urgentes',
+  )
 
   const dateStamp = (fetchedAt ?? new Date()).toISOString().slice(0, 10)
   XLSX.writeFile(workbook, `itsm-casos-urgentes-${dateStamp}.xlsx`)
