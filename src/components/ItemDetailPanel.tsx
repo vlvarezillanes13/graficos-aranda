@@ -209,7 +209,7 @@ export function ItemDetailPanel({
             <dd>{formatDeliveryTestDate(item, deliveryDatesById)}</dd>
           </div>
           <div>
-            <dt>Fecha Ultima Iteración</dt>
+            <dt>Fecha Gestión AFC</dt>
             <dd>{formatUltimaIteracionDate(item, deliveryDatesById)}</dd>
           </div>
           <div>

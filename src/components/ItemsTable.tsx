@@ -161,7 +161,7 @@ export function ItemsTable({
                   type="button"
                   onClick={() => toggleSort('ultimaIteracion')}
                 >
-                  Fecha Ultima Iteración{sortIndicator('ultimaIteracion')}
+                  Fecha Gestión AFC{sortIndicator('ultimaIteracion')}
                 </button>
               </th>
             </tr>

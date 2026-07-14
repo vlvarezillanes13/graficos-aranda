@@ -60,7 +60,7 @@ function itemToRow(
     estadoTicket: item.isClosed ? 'Cerrado' : 'Abierto',
     'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
     'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
-    'Fecha Ultima Iteración': formatUltimaIteracionDate(item, deliveryDatesById),
+    'Fecha Gestión AFC': formatUltimaIteracionDate(item, deliveryDatesById),
     ...row,
   }
 }
@@ -89,7 +89,7 @@ function itemToGridRow(
     Apertura: formatDate(item.openedDate),
     'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
     'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
-    'Fecha Ultima Iteración': formatUltimaIteracionDate(item, deliveryDatesById),
+    'Fecha Gestión AFC': formatUltimaIteracionDate(item, deliveryDatesById),
   }
 }
 
