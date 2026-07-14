@@ -89,6 +89,10 @@ export function buildFileUrl(fileId: string): string {
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/file/${fileId}`
 }
 
+export function buildAdditionalFieldsUrl(): string {
+  return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/additionalfields`
+}
+
 export function resolveFileContentType(
   upstreamType: string | null,
   fileName?: string,

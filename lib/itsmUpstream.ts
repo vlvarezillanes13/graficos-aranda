@@ -1,4 +1,5 @@
 import {
+  buildAdditionalFieldsUrl,
   buildFileUrl,
   buildItemFilesUrl,
   buildItsmHeaders,
@@ -11,6 +12,7 @@ import {
 } from './itsmApi.js'
 
 export {
+  buildAdditionalFieldsUrl,
   buildFileUrl,
   buildItemFilesUrl,
   buildItsmHeaders,

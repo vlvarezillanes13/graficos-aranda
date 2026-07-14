@@ -1,6 +1,12 @@
 import * as XLSX from 'xlsx'
+import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
 import { formatDate } from './aggregations'
+import {
+  formatDeliveryDate,
+  formatDeliveryTestDate,
+  formatPendingAfpDate,
+} from './deliveryDates'
 
 const DATE_FIELDS = new Set([
   'closedDate',
@@ -59,7 +65,10 @@ function createWorksheet(items: IncidentItem[]) {
   return XLSX.utils.json_to_sheet(items.map(itemToRow))
 }
 
-function itemToGridRow(item: IncidentItem) {
+function itemToGridRow(
+  item: IncidentItem,
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
+) {
   return {
     ID: item.idByProject,
     Asunto: item.subject,
@@ -69,19 +78,25 @@ function itemToGridRow(item: IncidentItem) {
     Estado: item.stateName,
     Prioridad: item.priorityName,
     Apertura: formatDate(item.openedDate),
-    'Fecha de Entrega': formatDate(
-      item.expectedDate > 0 ? item.expectedDate : null,
-    ),
+    'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
+    'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
+    'Fecha Pendiente AFP': formatPendingAfpDate(item, deliveryDatesById),
   }
 }
 
-function createGridWorksheet(items: IncidentItem[]) {
-  return XLSX.utils.json_to_sheet(items.map(itemToGridRow))
+function createGridWorksheet(
+  items: IncidentItem[],
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
+) {
+  return XLSX.utils.json_to_sheet(
+    items.map((item) => itemToGridRow(item, deliveryDatesById)),
+  )
 }
 
 export function downloadIncidentsXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
 ): void {
   if (items.length === 0) return
 
@@ -112,6 +127,7 @@ export function getExportCounts(items: IncidentItem[]) {
 export function downloadUrgentCasesXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
 ): void {
   if (items.length === 0) return
 
@@ -122,7 +138,7 @@ export function downloadUrgentCasesXlsx(
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createGridWorksheet(sortedItems),
+    createGridWorksheet(sortedItems, deliveryDatesById),
     'Urgentes',
   )
 

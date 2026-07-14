@@ -1,26 +1,61 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
 import { formatDate } from '../utils/aggregations'
+import {
+  formatDeliveryDate,
+  formatDeliveryTestDate,
+  formatPendingAfpDate,
+  getDeliveryDateTimestamp,
+  getDeliveryTestTimestamp,
+  getPendingAfpTimestamp,
+} from '../utils/deliveryDates'
 
 interface ItemsTableProps {
   items: IncidentItem[]
   onSelect?: (item: IncidentItem) => void
   emptyMessage?: string
+  deliveryDatesById?: Map<number, ItemDeliveryDates>
+  deliveryDatesLoading?: boolean
 }
 
 type SortKey =
   | 'idByProject'
   | 'openedDate'
-  | 'expectedDate'
+  | 'deliveryDate'
+  | 'deliveryTestDate'
+  | 'pendingAfpDate'
   | 'stateName'
   | 'priorityName'
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
+function getSortValue(
+  item: IncidentItem,
+  key: SortKey,
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
+): string | number {
+  if (key === 'deliveryDate') {
+    return getDeliveryDateTimestamp(item, deliveryDatesById) ?? 0
+  }
+
+  if (key === 'deliveryTestDate') {
+    return getDeliveryTestTimestamp(item, deliveryDatesById) ?? 0
+  }
+
+  if (key === 'pendingAfpDate') {
+    return getPendingAfpTimestamp(item, deliveryDatesById) ?? 0
+  }
+
+  return item[key]
+}
+
 export function ItemsTable({
   items,
   onSelect,
   emptyMessage = 'No hay registros con los filtros actuales',
+  deliveryDatesById,
+  deliveryDatesLoading = false,
 }: ItemsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('openedDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -29,8 +64,8 @@ export function ItemsTable({
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
-      const aVal = a[sortKey]
-      const bVal = b[sortKey]
+      const aVal = getSortValue(a, sortKey, deliveryDatesById)
+      const bVal = getSortValue(b, sortKey, deliveryDatesById)
 
       if (typeof aVal === 'number' && typeof bVal === 'number') {
         return sortDir === 'asc' ? aVal - bVal : bVal - aVal
@@ -42,7 +77,7 @@ export function ItemsTable({
         ? aStr.localeCompare(bStr)
         : bStr.localeCompare(aStr)
     })
-  }, [items, sortKey, sortDir])
+  }, [items, sortKey, sortDir, deliveryDatesById])
 
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize))
   const currentPage = Math.min(page, totalPages)
@@ -109,8 +144,24 @@ export function ItemsTable({
                 </button>
               </th>
               <th>
-                <button type="button" onClick={() => toggleSort('expectedDate')}>
-                  Fecha de Entrega{sortIndicator('expectedDate')}
+                <button type="button" onClick={() => toggleSort('deliveryDate')}>
+                  Fecha de Entrega{sortIndicator('deliveryDate')}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('deliveryTestDate')}
+                >
+                  Fecha Entrega TEST{sortIndicator('deliveryTestDate')}
+                </button>
+              </th>
+              <th>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('pendingAfpDate')}
+                >
+                  Fecha Pendiente AFP{sortIndicator('pendingAfpDate')}
                 </button>
               </th>
             </tr>
@@ -118,7 +169,7 @@ export function ItemsTable({
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="empty-row">
+                <td colSpan={11} className="empty-row">
                   {emptyMessage}
                 </td>
               </tr>
@@ -145,9 +196,9 @@ export function ItemsTable({
                   </td>
                   <td>{item.priorityName}</td>
                   <td>{formatDate(item.openedDate)}</td>
-                  <td>
-                    {formatDate(item.expectedDate > 0 ? item.expectedDate : null)}
-                  </td>
+                  <td>{formatDeliveryDate(item, deliveryDatesById)}</td>
+                  <td>{formatDeliveryTestDate(item, deliveryDatesById)}</td>
+                  <td>{formatPendingAfpDate(item, deliveryDatesById)}</td>
                 </tr>
               ))
             )}
@@ -160,6 +211,7 @@ export function ItemsTable({
           <p>
             Mostrando <strong>{rangeStart}</strong>–<strong>{rangeEnd}</strong> de{' '}
             <strong>{sortedItems.length}</strong> registros
+            {deliveryDatesLoading ? ' · cargando fechas de entrega...' : ''}
           </p>
 
           <div className="table-pagination-controls">

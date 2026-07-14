@@ -32,6 +32,11 @@ import {
 import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
 import { filterUrgentItems, readUrgentCaseIds } from './utils/urgentCases'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
+import { useDeliveryDates } from './hooks/useDeliveryDates'
+import {
+  clearDeliveryDatesCache,
+  fetchDeliveryDatesForItems,
+} from './services/deliveryDatesService'
 import './App.css'
 
 const GROUP_OPTIONS: { value: GroupField; label: string }[] = [
@@ -66,6 +71,7 @@ function App() {
   const [selectedItem, setSelectedItem] = useState<IncidentItem | null>(null)
   const [urgentModalOpen, setUrgentModalOpen] = useState(false)
   const [urgentIds, setUrgentIds] = useState<string[]>([])
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (!authenticated) return
@@ -77,6 +83,7 @@ function App() {
     setError(null)
 
     try {
+      clearDeliveryDatesCache()
       const result = await fetchItsmItems()
       setItems(result.items)
       setTotalItems(result.totalItems)
@@ -107,6 +114,23 @@ function App() {
     [items, filters],
   )
 
+  const itemsForDeliveryDates = useMemo(() => {
+    const byId = new Map<number, IncidentItem>()
+
+    for (const item of filteredItems) {
+      byId.set(item.id, item)
+    }
+
+    if (selectedItem) {
+      byId.set(selectedItem.id, selectedItem)
+    }
+
+    return Array.from(byId.values())
+  }, [filteredItems, selectedItem])
+
+  const { datesById: deliveryDatesById, loading: deliveryDatesLoading } =
+    useDeliveryDates(itemsForDeliveryDates)
+
   const summary = useMemo(() => getSummary(filteredItems), [filteredItems])
 
   const itemTypes = useMemo(() => getUniqueValues(items, 'itemTypeName'), [items])
@@ -135,6 +159,18 @@ function App() {
   const customLabel =
     GROUP_OPTIONS.find((option) => option.value === customField)?.label ??
     customField
+
+  const handleExportXlsx = useCallback(async () => {
+    if (items.length === 0) return
+
+    setExporting(true)
+    try {
+      const dates = await fetchDeliveryDatesForItems(items)
+      downloadIncidentsXlsx(items, fetchedAt, dates)
+    } finally {
+      setExporting(false)
+    }
+  }, [items, fetchedAt])
 
   const exportCounts = useMemo(() => getExportCounts(items), [items])
   const urgentCount = useMemo(
@@ -175,6 +211,7 @@ function App() {
     setSelectedItem(null)
     setUrgentIds([])
     setUrgentModalOpen(false)
+    clearDeliveryDatesCache()
   }, [])
 
   useIdleTimeout(handleLogout, authenticated)
@@ -224,11 +261,13 @@ function App() {
             <button
               type="button"
               className="secondary-button"
-              onClick={() => downloadIncidentsXlsx(items, fetchedAt)}
-              disabled={loading || items.length === 0}
+              onClick={() => void handleExportXlsx()}
+              disabled={loading || exporting || items.length === 0}
               title={`${exportCounts.open} abiertos y ${exportCounts.closed} cerrados`}
             >
-              Descargar XLSX ({exportCounts.open}+{exportCounts.closed})
+              {exporting
+                ? 'Preparando XLSX...'
+                : `Descargar XLSX (${exportCounts.open}+${exportCounts.closed})`}
             </button>
             <button
               type="button"
@@ -361,6 +400,8 @@ function App() {
               <ItemsTable
                 items={filteredItems}
                 onSelect={setSelectedItem}
+                deliveryDatesById={deliveryDatesById}
+                deliveryDatesLoading={deliveryDatesLoading}
               />
             </CollapsibleSection>
 
@@ -395,7 +436,11 @@ function App() {
         onSelect={setSelectedItem}
       />
 
-      <ItemDetailPanel item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <ItemDetailPanel
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        deliveryDatesById={deliveryDatesById}
+      />
     </div>
   )
 }

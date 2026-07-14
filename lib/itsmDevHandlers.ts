@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
+  buildAdditionalFieldsUrl,
   buildFileUrl,
   buildItemFilesUrl,
   buildItsmDevHeaders,
@@ -15,6 +16,49 @@ function sendJson(
   response.statusCode = status
   response.setHeader('Content-Type', 'application/json')
   response.end(JSON.stringify(payload))
+}
+
+async function readRequestBody(request: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = []
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+  }
+
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+async function proxyJsonPost(
+  request: IncomingMessage,
+  response: ServerResponse,
+  targetUrl: string,
+): Promise<void> {
+  const user = await requireSessionFromAuthHeader(request.headers.authorization)
+  if (!user) {
+    sendJson(response, 401, { error: 'Sesión no válida o expirada' })
+    return
+  }
+
+  try {
+    const body = await readRequestBody(request)
+    const upstream = await fetch(targetUrl, {
+      method: 'POST',
+      headers: buildItsmDevHeaders(),
+      body: body || '{}',
+    })
+
+    const responseBody = await upstream.text()
+    response.statusCode = upstream.status
+    response.setHeader(
+      'Content-Type',
+      upstream.headers.get('content-type') ?? 'application/json',
+    )
+    response.end(responseBody)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Error al conectar con ITSM'
+    sendJson(response, 502, { error: message })
+  }
 }
 
 async function proxyJsonGet(
@@ -93,6 +137,13 @@ async function proxyBinaryGet(
   }
 }
 
+export async function handleItsmAdditionalFields(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  await proxyJsonPost(request, response, buildAdditionalFieldsUrl())
+}
+
 export async function handleItsmItemFiles(
   request: IncomingMessage,
   response: ServerResponse,
@@ -126,6 +177,7 @@ export async function handleItsmFile(
 
 export function isProtectedItsmApi(pathname: string, method?: string): boolean {
   if (pathname === '/api/itsm-search' && method === 'POST') return true
+  if (pathname === '/api/itsm-additionalfields' && method === 'POST') return true
   if (pathname === '/api/itsm-item-files' && method === 'GET') return true
   if (pathname.startsWith('/api/itsm-file/') && method === 'GET') return true
   return false

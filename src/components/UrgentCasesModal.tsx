@@ -9,6 +9,8 @@ import {
   readUrgentCaseIds,
   writeUrgentCaseIds,
 } from '../utils/urgentCases'
+import { useDeliveryDates } from '../hooks/useDeliveryDates'
+import { fetchDeliveryDatesForItems } from '../services/deliveryDatesService'
 import { ItemsTable } from './ItemsTable'
 
 interface UrgentCasesModalProps {
@@ -32,6 +34,7 @@ export function UrgentCasesModal({
 }: UrgentCasesModalProps) {
   const [inputValue, setInputValue] = useState('')
   const [inputError, setInputError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -98,6 +101,21 @@ export function UrgentCasesModal({
     [items, urgentIds],
   )
 
+  const { datesById: deliveryDatesById, loading: deliveryDatesLoading } =
+    useDeliveryDates(urgentItems)
+
+  const handleDownloadXlsx = async () => {
+    if (urgentItems.length === 0) return
+
+    setExporting(true)
+    try {
+      const dates = await fetchDeliveryDatesForItems(urgentItems)
+      downloadUrgentCasesXlsx(urgentItems, fetchedAt, dates)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!open) return null
 
   return (
@@ -129,11 +147,11 @@ export function UrgentCasesModal({
             <button
               type="button"
               className="ghost-button"
-              onClick={() => downloadUrgentCasesXlsx(urgentItems, fetchedAt)}
-              disabled={urgentItems.length === 0}
+              onClick={() => void handleDownloadXlsx()}
+              disabled={urgentItems.length === 0 || exporting}
               title={`${urgentItems.length} caso${urgentItems.length === 1 ? '' : 's'}`}
             >
-              Descargar XLSX
+              {exporting ? 'Preparando XLSX...' : 'Descargar XLSX'}
             </button>
             <button
               type="button"
@@ -208,6 +226,8 @@ export function UrgentCasesModal({
             items={urgentItems}
             onSelect={onSelect}
             emptyMessage="Aplica una lista de IDs para ver los casos urgentes"
+            deliveryDatesById={deliveryDatesById}
+            deliveryDatesLoading={deliveryDatesLoading}
           />
         </div>
       </div>

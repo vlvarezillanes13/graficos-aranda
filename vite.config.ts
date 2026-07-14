@@ -4,6 +4,7 @@ import type { Plugin, ProxyOptions } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
 import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer.js'
 import {
+  handleItsmAdditionalFields,
   handleItsmFile,
   handleItsmItemFiles,
   isProtectedItsmApi,
@@ -59,6 +60,13 @@ function createAuthMiddleware() {
 
     if (pathname === '/api/auth/verify' && req.method === 'GET') {
       void handleAuthVerify(req, res)
+      return
+    }
+
+    if (pathname === '/api/itsm-additionalfields' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmAdditionalFields(req, res)
+      })
       return
     }
 

@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { IncidentItem } from '../types/incident'
+import type { ItemDeliveryDates } from '../types/additionalField'
 import type { ItemAttachment } from '../types/attachment'
 import { formatDate, getProgressTone } from '../utils/aggregations'
+import {
+  formatDeliveryDate,
+  formatDeliveryTestDate,
+  formatPendingAfpDate,
+} from '../utils/deliveryDates'
 import {
   fetchFileBlob,
   fetchItemFiles,
@@ -14,6 +20,7 @@ import { AttachmentZoomModal } from './AttachmentZoomModal'
 interface ItemDetailPanelProps {
   item: IncidentItem | null
   onClose: () => void
+  deliveryDatesById?: Map<number, ItemDeliveryDates>
 }
 
 interface FilePreview {
@@ -23,7 +30,11 @@ interface FilePreview {
   contentType: string
 }
 
-export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
+export function ItemDetailPanel({
+  item,
+  onClose,
+  deliveryDatesById,
+}: ItemDetailPanelProps) {
   const [files, setFiles] = useState<ItemAttachment[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
   const [filesError, setFilesError] = useState<string | null>(null)
@@ -188,6 +199,18 @@ export function ItemDetailPanel({ item, onClose }: ItemDetailPanelProps) {
           <div>
             <dt>Apertura</dt>
             <dd>{formatDate(item.openedDate)}</dd>
+          </div>
+          <div>
+            <dt>Fecha de Entrega</dt>
+            <dd>{formatDeliveryDate(item, deliveryDatesById)}</dd>
+          </div>
+          <div>
+            <dt>Fecha Entrega TEST</dt>
+            <dd>{formatDeliveryTestDate(item, deliveryDatesById)}</dd>
+          </div>
+          <div>
+            <dt>Fecha Pendiente AFP</dt>
+            <dd>{formatPendingAfpDate(item, deliveryDatesById)}</dd>
           </div>
           <div>
             <dt>Modificación</dt>
