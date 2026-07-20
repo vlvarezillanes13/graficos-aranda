@@ -1,29 +1,21 @@
 import { extractBearerToken, verifySessionToken } from './auth.js'
+import {
+  getItsmAuthCookie,
+  getItsmAuthToken,
+  ITSM_AUTH_TOKEN_ERROR,
+} from './env.js'
+
+export { getItsmAuthCookie, getItsmAuthToken } from './env.js'
 
 export const ITSM_ORIGIN = 'https://itsm.sonda.com'
 export const ITSM_REFERER = `${ITSM_ORIGIN}/asmsspecialist/index.html`
-
-function stripCookieValue(raw?: string): string | undefined {
-  if (!raw) return undefined
-  const cookie = raw.split(';')[0]?.trim()
-  if (!cookie) return undefined
-  return cookie.includes('=') ? cookie : `AuthCookieASMS=${cookie}`
-}
-
-export function getItsmAuthToken(): string | undefined {
-  return process.env.VITE_ITSM_AUTH_TOKEN?.trim()
-}
-
-export function getItsmAuthCookie(): string | undefined {
-  return stripCookieValue(process.env.VITE_ITSM_AUTH_COOKIE)
-}
 
 export function buildItsmHeaders(
   contentType = 'application/json',
 ): Record<string, string> {
   const token = getItsmAuthToken()
   if (!token) {
-    throw new Error('VITE_ITSM_AUTH_TOKEN no configurado')
+    throw new Error(ITSM_AUTH_TOKEN_ERROR)
   }
 
   const headers: Record<string, string> = {

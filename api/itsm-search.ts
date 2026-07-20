@@ -2,6 +2,11 @@ import {
   extractBearerToken,
   verifySessionToken,
 } from '../lib/auth.js'
+import {
+  getItsmAuthCookie,
+  getItsmAuthToken,
+  ITSM_AUTH_TOKEN_ERROR,
+} from '../lib/env.js'
 
 const ITSM_ORIGIN = 'https://itsm.sonda.com'
 const ITSM_SEARCH_URL = `${ITSM_ORIGIN}/asmsconsole/api/v9/item/search?language=0`
@@ -10,26 +15,12 @@ export const config = {
   runtime: 'edge',
 }
 
-function getAuthToken(): string | undefined {
-  return process.env.VITE_ITSM_AUTH_TOKEN?.trim()
-}
-
-function getAuthCookie(): string | undefined {
-  const raw = process.env.VITE_ITSM_AUTH_COOKIE
-  if (!raw) return undefined
-
-  const cookie = raw.split(';')[0]?.trim()
-  if (!cookie) return undefined
-
-  return cookie.includes('=') ? cookie : `AuthCookieASMS=${cookie}`
-}
-
 export default async function handler(request: Request): Promise<Response> {
   if (request.method === 'GET') {
     return Response.json({
       ok: true,
-      tokenConfigured: Boolean(getAuthToken()),
-      cookieConfigured: Boolean(getAuthCookie()),
+      tokenConfigured: Boolean(getItsmAuthToken()),
+      cookieConfigured: Boolean(getItsmAuthCookie()),
     })
   }
 
@@ -43,15 +34,9 @@ export default async function handler(request: Request): Promise<Response> {
     return Response.json({ error: 'Sesión no válida o expirada' }, { status: 401 })
   }
 
-  const token = getAuthToken()
+  const token = getItsmAuthToken()
   if (!token) {
-    return Response.json(
-      {
-        error:
-          'Configura VITE_ITSM_AUTH_TOKEN en Vercel → Settings → Environment Variables y haz Redeploy.',
-      },
-      { status: 500 },
-    )
+    return Response.json({ error: ITSM_AUTH_TOKEN_ERROR }, { status: 500 })
   }
 
   const headers: Record<string, string> = {
@@ -62,7 +47,7 @@ export default async function handler(request: Request): Promise<Response> {
     'x-authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
   }
 
-  const cookie = getAuthCookie()
+  const cookie = getItsmAuthCookie()
   if (cookie) {
     headers.Cookie = cookie
   }

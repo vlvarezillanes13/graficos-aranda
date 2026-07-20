@@ -11,6 +11,11 @@ import {
   isProtectedItsmApi,
 } from './lib/itsmDevHandlers.js'
 import { configureItsmRuntimeEnv } from './lib/itsmUpstream.js'
+import {
+  formatItsmBearerToken,
+  resolveItsmAuthCookieFromEnv,
+  resolveItsmAuthTokenFromEnv,
+} from './lib/env.js'
 
 function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
   return {
@@ -28,14 +33,12 @@ function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
           'https://itsm.sonda.com/asmsspecialist/index.html',
         )
 
-        if (env.VITE_ITSM_AUTH_TOKEN) {
-          const token = env.VITE_ITSM_AUTH_TOKEN.startsWith('Bearer ')
-            ? env.VITE_ITSM_AUTH_TOKEN
-            : `Bearer ${env.VITE_ITSM_AUTH_TOKEN}`
-          proxyReq.setHeader('x-authorization', token)
+        const token = resolveItsmAuthTokenFromEnv(env)
+        if (token) {
+          proxyReq.setHeader('x-authorization', formatItsmBearerToken(token))
         }
 
-        const cookie = env.VITE_ITSM_AUTH_COOKIE
+        const cookie = resolveItsmAuthCookieFromEnv(env)
         if (cookie) {
           proxyReq.setHeader('Cookie', cookie)
         }
@@ -106,8 +109,8 @@ function createAuthMiddleware() {
 
 function authApiDevPlugin(env: Record<string, string>): Plugin {
   configureItsmRuntimeEnv({
-    token: env.VITE_ITSM_AUTH_TOKEN,
-    cookie: env.VITE_ITSM_AUTH_COOKIE,
+    token: resolveItsmAuthTokenFromEnv(env),
+    cookie: resolveItsmAuthCookieFromEnv(env),
   })
 
   const middleware = createAuthMiddleware()

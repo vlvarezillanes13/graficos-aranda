@@ -1,3 +1,5 @@
+import { getAuthSessionSecret } from './env.js'
+
 export const AUTH_USERNAME = 'SNDTEST'
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000
 
@@ -13,10 +15,7 @@ export interface LoginResponse {
 }
 
 function getSessionSecret(): string {
-  const secret =
-    process.env.VITE_AUTH_SESSION_SECRET ?? 'dev-only-change-in-production'
-
-  return secret
+  return getAuthSessionSecret()
 }
 
 export function buildDailyPassword(date = new Date()): string {

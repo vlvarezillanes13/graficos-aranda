@@ -4,13 +4,16 @@ import {
   buildItemFilesUrl,
   buildItemHistoryUrl,
   buildItsmHeaders,
-  getItsmAuthCookie as getProdItsmAuthCookie,
-  getItsmAuthToken as getProdItsmAuthToken,
   ITSM_ORIGIN,
   ITSM_REFERER,
   requireSession,
   requireSessionFromAuthHeader,
 } from './itsmApi.js'
+import {
+  getItsmAuthCookie as getProdItsmAuthCookie,
+  getItsmAuthToken as getProdItsmAuthToken,
+  ITSM_AUTH_TOKEN_ERROR,
+} from './env.js'
 
 export {
   buildAdditionalFieldsUrl,
@@ -46,17 +49,11 @@ export function configureItsmRuntimeEnv(env: ItsmRuntimeEnv): void {
 }
 
 export function getItsmAuthToken(): string | undefined {
-  return (
-    runtimeEnv?.token ??
-    getProdItsmAuthToken()
-  )
+  return runtimeEnv?.token ?? getProdItsmAuthToken()
 }
 
 export function getItsmAuthCookie(): string | undefined {
-  return (
-    runtimeEnv?.cookie ??
-    getProdItsmAuthCookie()
-  )
+  return runtimeEnv?.cookie ?? getProdItsmAuthCookie()
 }
 
 export function buildItsmDevHeaders(
@@ -64,7 +61,7 @@ export function buildItsmDevHeaders(
 ): Record<string, string> {
   const token = getItsmAuthToken()
   if (!token) {
-    throw new Error('VITE_ITSM_AUTH_TOKEN no configurado')
+    throw new Error(ITSM_AUTH_TOKEN_ERROR)
   }
 
   const headers: Record<string, string> = {
