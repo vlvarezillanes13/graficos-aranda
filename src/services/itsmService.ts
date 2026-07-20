@@ -30,7 +30,7 @@ function toFetchError(error: unknown): Error {
 
       return new Error(
         `No se pudo conectar al API ITSM (${apiUrl}). ` +
-          'En local usa npm run dev (proxy Vite). En Vercel configura ITSM_AUTH_TOKEN.',
+          'En local usa npm run dev (proxy Vite). En Vercel configura VITE_ITSM_AUTH_TOKEN.',
       )
 
     }

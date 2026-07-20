@@ -35,7 +35,7 @@ function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
           proxyReq.setHeader('x-authorization', token)
         }
 
-        const cookie = env.ITSM_AUTH_COOKIE ?? env.VITE_ITSM_AUTH_COOKIE
+        const cookie = env.VITE_ITSM_AUTH_COOKIE
         if (cookie) {
           proxyReq.setHeader('Cookie', cookie)
         }
@@ -106,8 +106,8 @@ function createAuthMiddleware() {
 
 function authApiDevPlugin(env: Record<string, string>): Plugin {
   configureItsmRuntimeEnv({
-    token: env.ITSM_AUTH_TOKEN ?? env.VITE_ITSM_AUTH_TOKEN,
-    cookie: env.ITSM_AUTH_COOKIE ?? env.VITE_ITSM_AUTH_COOKIE,
+    token: env.VITE_ITSM_AUTH_TOKEN,
+    cookie: env.VITE_ITSM_AUTH_COOKIE,
   })
 
   const middleware = createAuthMiddleware()

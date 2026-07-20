@@ -11,11 +11,11 @@ export const config = {
 }
 
 function getAuthToken(): string | undefined {
-  return (process.env.ITSM_AUTH_TOKEN ?? process.env.VITE_ITSM_AUTH_TOKEN)?.trim()
+  return process.env.VITE_ITSM_AUTH_TOKEN?.trim()
 }
 
 function getAuthCookie(): string | undefined {
-  const raw = process.env.ITSM_AUTH_COOKIE ?? process.env.VITE_ITSM_AUTH_COOKIE
+  const raw = process.env.VITE_ITSM_AUTH_COOKIE
   if (!raw) return undefined
 
   const cookie = raw.split(';')[0]?.trim()
@@ -48,7 +48,7 @@ export default async function handler(request: Request): Promise<Response> {
     return Response.json(
       {
         error:
-          'Configura ITSM_AUTH_TOKEN en Vercel → Settings → Environment Variables y haz Redeploy.',
+          'Configura VITE_ITSM_AUTH_TOKEN en Vercel → Settings → Environment Variables y haz Redeploy.',
       },
       { status: 500 },
     )

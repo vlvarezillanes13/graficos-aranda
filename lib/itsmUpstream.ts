@@ -64,7 +64,7 @@ export function buildItsmDevHeaders(
 ): Record<string, string> {
   const token = getItsmAuthToken()
   if (!token) {
-    throw new Error('ITSM_AUTH_TOKEN no configurado')
+    throw new Error('VITE_ITSM_AUTH_TOKEN no configurado')
   }
 
   const headers: Record<string, string> = {

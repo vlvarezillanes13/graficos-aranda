@@ -11,17 +11,11 @@ function stripCookieValue(raw?: string): string | undefined {
 }
 
 export function getItsmAuthToken(): string | undefined {
-  return (
-    process.env.ITSM_AUTH_TOKEN ?? process.env.VITE_ITSM_AUTH_TOKEN
-  )?.trim()
+  return process.env.VITE_ITSM_AUTH_TOKEN?.trim()
 }
 
 export function getItsmAuthCookie(): string | undefined {
-  const raw =
-    stripCookieValue(process.env.ITSM_AUTH_COOKIE) ??
-    stripCookieValue(process.env.VITE_ITSM_AUTH_COOKIE)
-
-  return raw
+  return stripCookieValue(process.env.VITE_ITSM_AUTH_COOKIE)
 }
 
 export function buildItsmHeaders(
@@ -29,7 +23,7 @@ export function buildItsmHeaders(
 ): Record<string, string> {
   const token = getItsmAuthToken()
   if (!token) {
-    throw new Error('ITSM_AUTH_TOKEN no configurado')
+    throw new Error('VITE_ITSM_AUTH_TOKEN no configurado')
   }
 
   const headers: Record<string, string> = {

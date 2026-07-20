@@ -14,9 +14,7 @@ export interface LoginResponse {
 
 function getSessionSecret(): string {
   const secret =
-    process.env.AUTH_SESSION_SECRET ??
-    process.env.VITE_AUTH_SESSION_SECRET ??
-    'dev-only-change-in-production'
+    process.env.VITE_AUTH_SESSION_SECRET ?? 'dev-only-change-in-production'
 
   return secret
 }
