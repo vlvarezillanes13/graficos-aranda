@@ -17,6 +17,7 @@ import {
   type PreviewKind,
 } from '../services/attachmentService'
 import { AttachmentZoomModal } from './AttachmentZoomModal'
+import { ItemHistorySection } from './ItemHistorySection'
 
 interface ItemDetailPanelProps {
   item: IncidentItem | null
@@ -31,6 +32,8 @@ interface FilePreview {
   contentType: string
 }
 
+type DetailTab = 'detail' | 'history'
+
 export function ItemDetailPanel({
   item,
   onClose,
@@ -43,6 +46,11 @@ export function ItemDetailPanel({
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [zoomOpen, setZoomOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<DetailTab>('detail')
+
+  useEffect(() => {
+    setActiveTab('detail')
+  }, [item?.id])
 
   useEffect(() => {
     if (!item) return
@@ -148,6 +156,38 @@ export function ItemDetailPanel({
           </div>
         </div>
 
+        <div className="detail-tabs" role="tablist" aria-label="Secciones del ticket">
+          <button
+            type="button"
+            role="tab"
+            id="detail-tab-detail"
+            aria-selected={activeTab === 'detail'}
+            aria-controls="detail-panel-detail"
+            className={`detail-tab ${activeTab === 'detail' ? 'active' : ''}`}
+            onClick={() => setActiveTab('detail')}
+          >
+            Detalle
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="detail-tab-history"
+            aria-selected={activeTab === 'history'}
+            aria-controls="detail-panel-history"
+            className={`detail-tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            Historial
+          </button>
+        </div>
+
+        <div
+          id="detail-panel-detail"
+          role="tabpanel"
+          aria-labelledby="detail-tab-detail"
+          className="detail-tab-panel"
+          hidden={activeTab !== 'detail'}
+        >
         <dl className="detail-grid">
           <div>
             <dt>Estado</dt>
@@ -339,6 +379,17 @@ export function ItemDetailPanel({
             </div>
           )}
         </section>
+        </div>
+
+        <div
+          id="detail-panel-history"
+          role="tabpanel"
+          aria-labelledby="detail-tab-history"
+          className="detail-tab-panel"
+          hidden={activeTab !== 'history'}
+        >
+          <ItemHistorySection item={item} active={activeTab === 'history'} />
+        </div>
 
         {zoomOpen && preview && (
           <AttachmentZoomModal

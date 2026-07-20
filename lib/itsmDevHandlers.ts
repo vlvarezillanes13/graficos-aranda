@@ -3,6 +3,7 @@ import {
   buildAdditionalFieldsUrl,
   buildFileUrl,
   buildItemFilesUrl,
+  buildItemHistoryUrl,
   buildItsmDevHeaders,
   requireSessionFromAuthHeader,
 } from './itsmUpstream.js'
@@ -160,6 +161,30 @@ export async function handleItsmItemFiles(
   await proxyJsonGet(request, response, buildItemFilesUrl(itemId, itemType))
 }
 
+export async function handleItsmItemHistory(
+  request: IncomingMessage,
+  response: ServerResponse,
+  requestUrl: URL,
+): Promise<void> {
+  const itemId = requestUrl.searchParams.get('itemId')
+  const isClosed = requestUrl.searchParams.get('isClosed') === 'true'
+  const modelId = Number(requestUrl.searchParams.get('modelId'))
+  const statusId = Number(requestUrl.searchParams.get('statusId'))
+
+  if (!itemId || Number.isNaN(modelId) || Number.isNaN(statusId)) {
+    sendJson(response, 400, {
+      error: 'itemId, modelId y statusId son obligatorios',
+    })
+    return
+  }
+
+  await proxyJsonGet(
+    request,
+    response,
+    buildItemHistoryUrl(itemId, { isClosed, modelId, statusId }),
+  )
+}
+
 export async function handleItsmFile(
   request: IncomingMessage,
   response: ServerResponse,
@@ -179,6 +204,7 @@ export function isProtectedItsmApi(pathname: string, method?: string): boolean {
   if (pathname === '/api/itsm-search' && method === 'POST') return true
   if (pathname === '/api/itsm-additionalfields' && method === 'POST') return true
   if (pathname === '/api/itsm-item-files' && method === 'GET') return true
+  if (pathname === '/api/itsm-item-history' && method === 'GET') return true
   if (pathname.startsWith('/api/itsm-file/') && method === 'GET') return true
   return false
 }

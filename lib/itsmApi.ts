@@ -85,6 +85,29 @@ export function buildItemFilesUrl(itemId: string, itemType: string): string {
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/${itemId}/files?${params}`
 }
 
+export interface ItemHistoryParams {
+  isClosed: boolean
+  modelId: number
+  statusId: number
+  consoleType?: number
+  limitDescription?: boolean
+}
+
+export function buildItemHistoryUrl(
+  itemId: string,
+  historyParams: ItemHistoryParams,
+): string {
+  const params = new URLSearchParams({
+    isClosed: String(historyParams.isClosed),
+    consoleType: String(historyParams.consoleType ?? 1),
+    modelId: String(historyParams.modelId),
+    statusId: String(historyParams.statusId),
+    limitDescription: String(historyParams.limitDescription ?? true),
+  })
+
+  return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/${itemId}/history/list?${params}`
+}
+
 export function buildFileUrl(fileId: string): string {
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/file/${fileId}`
 }

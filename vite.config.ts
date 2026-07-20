@@ -7,6 +7,7 @@ import {
   handleItsmAdditionalFields,
   handleItsmFile,
   handleItsmItemFiles,
+  handleItsmItemHistory,
   isProtectedItsmApi,
 } from './lib/itsmDevHandlers.js'
 import { configureItsmRuntimeEnv } from './lib/itsmUpstream.js'
@@ -73,6 +74,13 @@ function createAuthMiddleware() {
     if (pathname === '/api/itsm-item-files' && req.method === 'GET') {
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) void handleItsmItemFiles(req, res, requestUrl)
+      })
+      return
+    }
+
+    if (pathname === '/api/itsm-item-history' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmItemHistory(req, res, requestUrl)
       })
       return
     }
