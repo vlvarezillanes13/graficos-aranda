@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
-import { formatDate } from './aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
@@ -9,99 +8,38 @@ import {
   formatUltimaIteracionDate,
 } from './deliveryDates'
 
-const DATE_FIELDS = new Set([
-  'closedDate',
-  'expectedDate',
-  'finalDate',
-  'initialDate',
-  'modifiedDate',
-  'openedDate',
-  'realDate',
-])
+type ExportRow = Record<string, string>
 
-function formatExportValue(
-  key: string,
-  value: IncidentItem[keyof IncidentItem],
-): string | number | boolean | null {
-  if (value === null || value === undefined) return null
-
-  if (DATE_FIELDS.has(key) && typeof value === 'number') {
-    return new Intl.DateTimeFormat('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(value))
-  }
-
-  if (Array.isArray(value)) {
-    return JSON.stringify(value)
-  }
-
-  if (typeof value === 'boolean') {
-    return value ? 'Sí' : 'No'
-  }
-
-  return value as string | number
-}
-
-function itemToRow(
+function itemToExportRow(
   item: IncidentItem,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
-): Record<string, string | number | boolean | null> {
-  const row = Object.fromEntries(
-    (Object.keys(item) as (keyof IncidentItem)[]).map((key) => [
-      key,
-      formatExportValue(key, item[key]),
-    ]),
-  )
-
+): ExportRow {
   return {
-    estadoTicket: item.isClosed ? 'Cerrado' : 'Abierto',
-    'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
-    'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
-    'Fecha Gestión AFC': formatUltimaIteracionDate(item, deliveryDatesById),
-    'Fecha Test Aprobado': formatTestAprobadoDate(item, deliveryDatesById),
-    ...row,
+    'ESTADO GENERAL': item.isClosed ? 'Cerrado' : 'Abierto',
+    GRUPO: item.groupName,
+    'N° TICKET': item.idByProject,
+    ASUNTO: item.subject,
+    DESCRIPCION: item.descriptionNoHtml.trim(),
+    ESTADO: item.stateName,
+    RESPONSABLE: item.responsibleName,
+    IMPACTO: item.impactName,
+    URGENCIA: item.urgencyName,
+    PRIORIDAD: item.priorityName,
+    CATEGORIA: item.categoryHierarchy,
+    'SUB-CATEGORIA': item.categoryName,
+    'FECHA DE ENTREGA': formatDeliveryDate(item, deliveryDatesById),
+    'FECHA ENTREGA TEST': formatDeliveryTestDate(item, deliveryDatesById),
+    'FECHA GESTIÓN AFC': formatUltimaIteracionDate(item, deliveryDatesById),
+    'FECHA TEST APROBADO': formatTestAprobadoDate(item, deliveryDatesById),
   }
 }
 
-function createWorksheet(
+function createExportWorksheet(
   items: IncidentItem[],
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
 ) {
   return XLSX.utils.json_to_sheet(
-    items.map((item) => itemToRow(item, deliveryDatesById)),
-  )
-}
-
-function itemToGridRow(
-  item: IncidentItem,
-  deliveryDatesById?: Map<number, ItemDeliveryDates>,
-) {
-  return {
-    ID: item.idByProject,
-    Asunto: item.subject,
-    Tipo: item.itemTypeName,
-    Grupo: item.groupName,
-    Responsable: item.responsibleName,
-    Estado: item.stateName,
-    Prioridad: item.priorityName,
-    Apertura: formatDate(item.openedDate),
-    'Fecha de Entrega': formatDeliveryDate(item, deliveryDatesById),
-    'Fecha Entrega TEST': formatDeliveryTestDate(item, deliveryDatesById),
-    'Fecha Gestión AFC': formatUltimaIteracionDate(item, deliveryDatesById),
-    'Fecha Test Aprobado': formatTestAprobadoDate(item, deliveryDatesById),
-  }
-}
-
-function createGridWorksheet(
-  items: IncidentItem[],
-  deliveryDatesById?: Map<number, ItemDeliveryDates>,
-) {
-  return XLSX.utils.json_to_sheet(
-    items.map((item) => itemToGridRow(item, deliveryDatesById)),
+    items.map((item) => itemToExportRow(item, deliveryDatesById)),
   )
 }
 
@@ -118,17 +56,17 @@ export function downloadIncidentsXlsx(
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createWorksheet(items, deliveryDatesById),
+    createExportWorksheet(items, deliveryDatesById),
     'Todos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createWorksheet(openItems, deliveryDatesById),
+    createExportWorksheet(openItems, deliveryDatesById),
     'Abiertos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createWorksheet(closedItems, deliveryDatesById),
+    createExportWorksheet(closedItems, deliveryDatesById),
     'Cerrados',
   )
 
@@ -162,7 +100,7 @@ export function downloadUrgentCasesXlsx(
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createGridWorksheet(sortedItems, deliveryDatesById),
+    createExportWorksheet(sortedItems, deliveryDatesById),
     'Urgentes',
   )
 
