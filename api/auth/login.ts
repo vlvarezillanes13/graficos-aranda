@@ -25,15 +25,18 @@ export default async function handler(request: Request): Promise<Response> {
       )
     }
 
-    const isValid = await verifyCredentials(username, passwordHash)
-    if (!isValid) {
+    const role = await verifyCredentials(username, passwordHash)
+    if (!role) {
       return Response.json(
         { error: 'Usuario o contraseña incorrectos' },
         { status: 401 },
       )
     }
 
-    const session = await createSessionToken(username.toUpperCase())
+    const session = await createSessionToken(
+      username.toUpperCase(),
+      role === 'admin',
+    )
     return Response.json(session)
   } catch {
     return Response.json({ error: 'Solicitud inválida' }, { status: 400 })

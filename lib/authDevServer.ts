@@ -53,13 +53,16 @@ export async function handleAuthLogin(
       return
     }
 
-    const isValid = await verifyCredentials(username, passwordHash)
-    if (!isValid) {
+    const role = await verifyCredentials(username, passwordHash)
+    if (!role) {
       sendJson(response, 401, { error: 'Usuario o contraseña incorrectos' })
       return
     }
 
-    const session = await createSessionToken(username.toUpperCase())
+    const session = await createSessionToken(
+      username.toUpperCase(),
+      role === 'admin',
+    )
     sendJson(response, 200, session)
   } catch {
     sendJson(response, 400, { error: 'Solicitud inválida' })
@@ -71,14 +74,18 @@ export async function handleAuthVerify(
   response: ServerResponse,
 ): Promise<void> {
   const token = extractBearerToken(request.headers.authorization)
-  const username = await verifySessionToken(token)
+  const session = await verifySessionToken(token)
 
-  if (!username) {
+  if (!session) {
     sendJson(response, 401, { valid: false })
     return
   }
 
-  sendJson(response, 200, { valid: true, username })
+  sendJson(response, 200, {
+    valid: true,
+    username: session.username,
+    isAdmin: session.isAdmin,
+  })
 }
 
 export async function handleItsmAuthGuard(
@@ -86,9 +93,9 @@ export async function handleItsmAuthGuard(
   response: ServerResponse,
 ): Promise<boolean> {
   const token = extractBearerToken(request.headers.authorization)
-  const username = await verifySessionToken(token)
+  const session = await verifySessionToken(token)
 
-  if (!username) {
+  if (!session) {
     sendJson(response, 401, { error: 'Sesión no válida o expirada' })
     return false
   }

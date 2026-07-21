@@ -8,6 +8,7 @@ import {
   ITSM_REFERER,
   requireSession,
   requireSessionFromAuthHeader,
+  requireAdminSessionFromAuthHeader,
 } from './itsmApi.js'
 import {
   getItsmAuthCookie as getProdItsmAuthCookie,
@@ -25,6 +26,7 @@ export {
   ITSM_REFERER,
   requireSession,
   requireSessionFromAuthHeader,
+  requireAdminSessionFromAuthHeader,
 }
 
 interface ItsmRuntimeEnv {

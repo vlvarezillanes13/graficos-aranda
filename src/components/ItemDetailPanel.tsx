@@ -17,12 +17,15 @@ import {
   type PreviewKind,
 } from '../services/attachmentService'
 import { AttachmentZoomModal } from './AttachmentZoomModal'
+import { ChangeResponsibleSection } from './ChangeResponsibleSection'
 import { ItemHistorySection } from './ItemHistorySection'
 
 interface ItemDetailPanelProps {
   item: IncidentItem | null
   onClose: () => void
   deliveryDatesById?: Map<number, ItemDeliveryDates>
+  onResponsibleChanged?: () => void
+  canAssignResponsible?: boolean
 }
 
 interface FilePreview {
@@ -32,12 +35,14 @@ interface FilePreview {
   contentType: string
 }
 
-type DetailTab = 'detail' | 'history'
+type DetailTab = 'detail' | 'history' | 'assignment'
 
 export function ItemDetailPanel({
   item,
   onClose,
   deliveryDatesById,
+  onResponsibleChanged,
+  canAssignResponsible = false,
 }: ItemDetailPanelProps) {
   const [files, setFiles] = useState<ItemAttachment[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
@@ -49,8 +54,14 @@ export function ItemDetailPanel({
   const [activeTab, setActiveTab] = useState<DetailTab>('detail')
 
   useEffect(() => {
+    if (activeTab === 'assignment' && !canAssignResponsible) {
+      setActiveTab('detail')
+    }
+  }, [activeTab, canAssignResponsible])
+
+  useEffect(() => {
     setActiveTab('detail')
-  }, [item?.id])
+  }, [item?.id, canAssignResponsible])
 
   useEffect(() => {
     if (!item) return
@@ -179,6 +190,19 @@ export function ItemDetailPanel({
           >
             Historial
           </button>
+          {canAssignResponsible && (
+            <button
+              type="button"
+              role="tab"
+              id="detail-tab-assignment"
+              aria-selected={activeTab === 'assignment'}
+              aria-controls="detail-panel-assignment"
+              className={`detail-tab ${activeTab === 'assignment' ? 'active' : ''}`}
+              onClick={() => setActiveTab('assignment')}
+            >
+              Asignación
+            </button>
+          )}
         </div>
 
         <div
@@ -390,6 +414,22 @@ export function ItemDetailPanel({
         >
           <ItemHistorySection item={item} active={activeTab === 'history'} />
         </div>
+
+        {canAssignResponsible && (
+          <div
+            id="detail-panel-assignment"
+            role="tabpanel"
+            aria-labelledby="detail-tab-assignment"
+            className="detail-tab-panel"
+            hidden={activeTab !== 'assignment'}
+          >
+            <ChangeResponsibleSection
+              item={item}
+              active={activeTab === 'assignment'}
+              onAssigned={onResponsibleChanged}
+            />
+          </div>
+        )}
 
         {zoomOpen && preview && (
           <AttachmentZoomModal

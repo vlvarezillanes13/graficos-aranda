@@ -11,6 +11,7 @@ import { SummaryCards } from './components/SummaryCards'
 import { UrgentCasesModal } from './components/UrgentCasesModal'
 import {
   getSessionUsername,
+  getSessionIsAdmin,
   logout,
   verifySession,
 } from './services/authService'
@@ -74,6 +75,7 @@ function App() {
   const [urgentModalOpen, setUrgentModalOpen] = useState(false)
   const [urgentIds, setUrgentIds] = useState<string[]>([])
   const [exporting, setExporting] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     if (!authenticated) return
@@ -119,6 +121,7 @@ function App() {
   useEffect(() => {
     void verifySession().then((valid) => {
       setAuthenticated(valid)
+      setIsAdmin(valid && getSessionIsAdmin())
       setAuthReady(true)
     })
   }, [])
@@ -235,6 +238,7 @@ function App() {
     setSelectedItem(null)
     setUrgentIds([])
     setUrgentModalOpen(false)
+    setIsAdmin(false)
     clearDeliveryDatesCache()
   }, [])
 
@@ -245,7 +249,14 @@ function App() {
   }
 
   if (!authenticated) {
-    return <LoginPage onSuccess={() => setAuthenticated(true)} />
+    return (
+      <LoginPage
+        onSuccess={() => {
+          setAuthenticated(true)
+          setIsAdmin(getSessionIsAdmin())
+        }}
+      />
+    )
   }
 
   return (
@@ -271,7 +282,9 @@ function App() {
         <div className="hero-actions">
           {!loading && !error && (
             <span className="source-badge itsm">
-              {username ? `${username} · ITSM` : 'Conectado a ITSM'}
+              {username
+                ? `${username}${isAdmin ? ' · Admin' : ''} · ITSM`
+                : 'Conectado a ITSM'}
             </span>
           )}
           <div className="hero-actions-buttons">
@@ -464,6 +477,8 @@ function App() {
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         deliveryDatesById={deliveryDatesById}
+        onResponsibleChanged={refreshDataInBackground}
+        canAssignResponsible={isAdmin}
       />
     </div>
   )

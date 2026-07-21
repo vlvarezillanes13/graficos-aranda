@@ -2,22 +2,26 @@ import { sha256Hex } from '../utils/crypto'
 
 const TOKEN_KEY = 'graficos_auth_token'
 const USERNAME_KEY = 'graficos_auth_user'
+const ADMIN_KEY = 'graficos_auth_admin'
 
 export interface AuthSession {
   token: string
   username: string
   expiresAt: number
+  isAdmin: boolean
 }
 
 function saveSession(session: AuthSession): void {
   sessionStorage.setItem(TOKEN_KEY, session.token)
   sessionStorage.setItem(USERNAME_KEY, session.username)
+  sessionStorage.setItem(ADMIN_KEY, session.isAdmin ? '1' : '0')
   sessionStorage.setItem('graficos_auth_exp', String(session.expiresAt))
 }
 
 export function clearSession(): void {
   sessionStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(USERNAME_KEY)
+  sessionStorage.removeItem(ADMIN_KEY)
   sessionStorage.removeItem('graficos_auth_exp')
 }
 
@@ -35,6 +39,10 @@ export function getSessionToken(): string | null {
 
 export function getSessionUsername(): string | null {
   return sessionStorage.getItem(USERNAME_KEY)
+}
+
+export function getSessionIsAdmin(): boolean {
+  return sessionStorage.getItem(ADMIN_KEY) === '1'
 }
 
 export async function login(
@@ -63,6 +71,7 @@ export async function login(
     token: data.token,
     username: data.username,
     expiresAt: data.expiresAt,
+    isAdmin: data.isAdmin === true,
   }
 
   saveSession(session)
@@ -81,6 +90,12 @@ export async function verifySession(): Promise<boolean> {
     clearSession()
     return false
   }
+
+  const data = await response.json().catch(() => ({}))
+  if (typeof data.username === 'string') {
+    sessionStorage.setItem(USERNAME_KEY, data.username)
+  }
+  sessionStorage.setItem(ADMIN_KEY, data.isAdmin === true ? '1' : '0')
 
   return true
 }

@@ -10,11 +10,15 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   const token = extractBearerToken(request.headers.get('Authorization'))
-  const username = await verifySessionToken(token)
+  const session = await verifySessionToken(token)
 
-  if (!username) {
+  if (!session) {
     return Response.json({ valid: false }, { status: 401 })
   }
 
-  return Response.json({ valid: true, username })
+  return Response.json({
+    valid: true,
+    username: session.username,
+    isAdmin: session.isAdmin,
+  })
 }

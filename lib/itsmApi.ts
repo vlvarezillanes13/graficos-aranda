@@ -1,4 +1,8 @@
-import { extractBearerToken, verifySessionToken } from './auth.js'
+import {
+  extractBearerToken,
+  verifySessionToken,
+  type SessionInfo,
+} from './auth.js'
 import {
   getItsmAuthCookie,
   getItsmAuthToken,
@@ -37,27 +41,37 @@ export function buildItsmHeaders(
   return headers
 }
 
+export type { SessionInfo } from './auth.js'
+
 export async function requireSession(
   request: Request,
-): Promise<string | Response> {
+): Promise<SessionInfo | Response> {
   const sessionToken = extractBearerToken(request.headers.get('Authorization'))
-  const user = await verifySessionToken(sessionToken)
+  const session = await verifySessionToken(sessionToken)
 
-  if (!user) {
+  if (!session) {
     return Response.json(
       { error: 'Sesión no válida o expirada' },
       { status: 401 },
     )
   }
 
-  return user
+  return session
 }
 
 export async function requireSessionFromAuthHeader(
   authorization: string | undefined,
-): Promise<string | null> {
+): Promise<SessionInfo | null> {
   const sessionToken = extractBearerToken(authorization)
   return verifySessionToken(sessionToken)
+}
+
+export async function requireAdminSessionFromAuthHeader(
+  authorization: string | undefined,
+): Promise<SessionInfo | null> {
+  const session = await requireSessionFromAuthHeader(authorization)
+  if (!session?.isAdmin) return null
+  return session
 }
 
 export function buildItemFilesUrl(itemId: string, itemType: string): string {
@@ -100,6 +114,22 @@ export function buildFileUrl(fileId: string): string {
 
 export function buildAdditionalFieldsUrl(): string {
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/additionalfields`
+}
+
+export function buildItemUrl(itemId: string): string {
+  return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/${itemId}`
+}
+
+export function buildGroupListUrl(serviceId: number, stateId: number): string {
+  return `${ITSM_ORIGIN}/asmsconsole/api/v9/service/${serviceId}/state/${stateId}/group/list`
+}
+
+export function buildGroupSpecialistsUrl(
+  groupId: number,
+  projectId: number,
+): string {
+  const params = new URLSearchParams({ available: 'true' })
+  return `${ITSM_ORIGIN}/asmsconsole/api/v9/group/${groupId}/project/${projectId}/specialists?${params}`
 }
 
 export function resolveFileContentType(

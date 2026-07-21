@@ -21,6 +21,18 @@ export function getItsmAuthCookie(): string | undefined {
   return stripCookieValue(raw)
 }
 
+/** Default admin password for SNDVAI (assignment privileges). */
+export const DEFAULT_AUTH_ADMIN_PASSWORD = 'SND2109'
+
+/** Server-only admin password for assignment privileges. */
+export function getAuthAdminPassword(): string {
+  return (
+    process.env.AUTH_ADMIN_PASSWORD ??
+    process.env.VITE_AUTH_ADMIN_PASSWORD ??
+    DEFAULT_AUTH_ADMIN_PASSWORD
+  ).trim()
+}
+
 /** Server-only session signing secret. */
 export function getAuthSessionSecret(): string {
   return (

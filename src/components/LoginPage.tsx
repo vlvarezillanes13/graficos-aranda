@@ -32,9 +32,6 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
       <section className="login-card">
         <p className="login-eyebrow">ITSM SONDA</p>
         <h1>Iniciar sesión</h1>
-        <p className="login-subtitle">
-          Acceso al panel de incidentes y solicitudes
-        </p>
 
         <form className="login-form" onSubmit={(e) => void handleSubmit(e)}>
           <label>
@@ -45,7 +42,6 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
               autoComplete="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="SNDTEST"
               required
             />
           </label>

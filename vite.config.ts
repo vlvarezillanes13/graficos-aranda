@@ -5,7 +5,10 @@ import { defineConfig, loadEnv } from 'vite'
 import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer.js'
 import {
   handleItsmAdditionalFields,
+  handleItsmAssignResponsible,
   handleItsmFile,
+  handleItsmGroupSpecialists,
+  handleItsmGroups,
   handleItsmItemFiles,
   handleItsmItemHistory,
   isProtectedItsmApi,
@@ -92,6 +95,27 @@ function createAuthMiddleware() {
       const fileId = pathname.replace('/api/itsm-file/', '')
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) void handleItsmFile(req, res, fileId, requestUrl)
+      })
+      return
+    }
+
+    if (pathname === '/api/itsm-groups' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmGroups(req, res, requestUrl)
+      })
+      return
+    }
+
+    if (pathname === '/api/itsm-group-specialists' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmGroupSpecialists(req, res, requestUrl)
+      })
+      return
+    }
+
+    if (pathname === '/api/itsm-assign-responsible' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmAssignResponsible(req, res)
       })
       return
     }
