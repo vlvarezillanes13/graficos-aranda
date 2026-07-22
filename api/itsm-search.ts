@@ -1,58 +1,36 @@
-import {
-  extractBearerToken,
-  verifySessionToken,
-} from '../lib/auth.js'
-import { buildItsmSearchUrl } from '../lib/itsmApi.js'
-import {
-  assertItsmCredentialsConfigured,
-  ItsmCredentialsMissingError,
-  itsmTokenMissingPayload,
-  mapUpstreamItsmResponse,
-} from '../lib/itsmCredentialsResponse.js'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { buildItsmSearchUrl, requireSessionFromAuthHeader } from '../lib/itsmApi.js'
 import { itsmFetch } from '../lib/itsmFetch.js'
+import {
+  finishItsmTextProxy,
+  guardItsmCredentials,
+  handleItsmProxyError,
+} from '../lib/itsmVercelProxy.js'
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request.method !== 'POST') {
-    return Response.json({ error: 'Method not allowed' }, { status: 405 })
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
   }
 
-  const sessionToken = extractBearerToken(request.headers.get('Authorization'))
-  const user = await verifySessionToken(sessionToken)
+  const user = await requireSessionFromAuthHeader(req.headers.authorization)
   if (!user) {
-    return Response.json({ error: 'Sesión no válida o expirada' }, { status: 401 })
+    res.status(401).json({ error: 'Sesión no válida o expirada' })
+    return
   }
 
-  const credentials = await assertItsmCredentialsConfigured()
-  if (!credentials.ok) {
-    return Response.json(credentials.payload, { status: 401 })
-  }
+  if (!(await guardItsmCredentials(res))) return
 
   try {
     const upstream = await itsmFetch(buildItsmSearchUrl(), {
       method: 'POST',
-      body: (await request.text()) || '{}',
+      body: JSON.stringify(req.body ?? {}),
     })
-
-    const body = await upstream.text()
-    const mapped = await mapUpstreamItsmResponse(upstream.status, body)
-    if (mapped.handled) {
-      return Response.json(mapped.payload, { status: mapped.status })
-    }
-
-    return new Response(body, {
-      status: mapped.status,
-      headers: {
-        'Content-Type':
-          upstream.headers.get('content-type') ?? 'application/json',
-      },
-    })
+    await finishItsmTextProxy(res, upstream)
   } catch (error) {
-    if (error instanceof ItsmCredentialsMissingError) {
-      return Response.json(itsmTokenMissingPayload(), { status: 401 })
-    }
-
-    const message =
-      error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    return Response.json({ error: message }, { status: 502 })
+    handleItsmProxyError(res, error)
   }
 }

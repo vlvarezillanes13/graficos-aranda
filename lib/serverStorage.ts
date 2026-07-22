@@ -19,8 +19,13 @@ export function isPersistentStorageEnabled(): boolean {
 
 export async function readStorageJson<T>(key: string): Promise<T | null> {
   if (isPersistentStorageEnabled()) {
-    const { kv } = await import('@vercel/kv')
-    return (await kv.get<T>(key)) ?? null
+    try {
+      const { kv } = await import('@vercel/kv')
+      return (await kv.get<T>(key)) ?? null
+    } catch (error) {
+      console.error('[storage] KV read failed:', error)
+      return null
+    }
   }
 
   return (memoryStore.get(key) as T | undefined) ?? null
@@ -28,9 +33,14 @@ export async function readStorageJson<T>(key: string): Promise<T | null> {
 
 export async function writeStorageJson<T>(key: string, value: T): Promise<void> {
   if (isPersistentStorageEnabled()) {
-    const { kv } = await import('@vercel/kv')
-    await kv.set(key, value)
-    return
+    try {
+      const { kv } = await import('@vercel/kv')
+      await kv.set(key, value)
+      return
+    } catch (error) {
+      console.error('[storage] KV write failed:', error)
+      throw new Error('No se pudo guardar en el almacenamiento persistente')
+    }
   }
 
   memoryStore.set(key, value)
@@ -38,9 +48,13 @@ export async function writeStorageJson<T>(key: string, value: T): Promise<void> 
 
 export async function deleteStorageKey(key: string): Promise<void> {
   if (isPersistentStorageEnabled()) {
-    const { kv } = await import('@vercel/kv')
-    await kv.del(key)
-    return
+    try {
+      const { kv } = await import('@vercel/kv')
+      await kv.del(key)
+      return
+    } catch (error) {
+      console.error('[storage] KV delete failed:', error)
+    }
   }
 
   memoryStore.delete(key)
