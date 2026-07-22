@@ -5,7 +5,7 @@ import type {
   ItemAssignContext,
   PaginatedContent,
 } from '../types/assignment'
-import { getAuthHeaders } from './authService'
+import { ensureItsmApiOk, fetchItsmApi } from './itsmApiClient'
 
 function parsePaginatedContent<T>(payload: unknown): T[] {
   if (
@@ -55,15 +55,9 @@ export async function fetchAssignmentGroups(
     stateId: String(stateId),
   })
 
-  const response = await fetch(`/api/itsm-groups?${params}`, {
-    headers: getAuthHeaders(),
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      await readErrorMessage(response, 'No se pudieron cargar los grupos'),
-    )
-  }
+  const response = await ensureItsmApiOk(
+    await fetchItsmApi(`/api/itsm-groups?${params}`),
+  )
 
   const payload = await response.json()
   return parsePaginatedContent<AssignmentGroup>(payload).filter(
@@ -80,15 +74,9 @@ export async function fetchGroupSpecialists(
     projectId: String(projectId),
   })
 
-  const response = await fetch(`/api/itsm-group-specialists?${params}`, {
-    headers: getAuthHeaders(),
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      await readErrorMessage(response, 'No se pudieron cargar los responsables'),
-    )
-  }
+  const response = await ensureItsmApiOk(
+    await fetchItsmApi(`/api/itsm-group-specialists?${params}`),
+  )
 
   const payload = await response.json()
   return parsePaginatedContent<AssignmentSpecialist>(payload)
@@ -99,23 +87,20 @@ export async function assignTicketResponsible(
   groupId: number,
   responsibleId: number,
 ): Promise<void> {
-  const response = await fetch('/api/itsm-assign-responsible', {
-    method: 'POST',
-    headers: {
-      ...getAuthHeaders(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      itemId: item.id,
-      groupId,
-      responsibleId,
-      itemContext: buildItemAssignContext(item),
+  const response = await ensureItsmApiOk(
+    await fetchItsmApi('/api/itsm-assign-responsible', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        itemId: item.id,
+        groupId,
+        responsibleId,
+        itemContext: buildItemAssignContext(item),
+      }),
     }),
-  })
+  )
 
-  if (!response.ok) {
-    throw new Error(
-      await readErrorMessage(response, 'No se pudo actualizar el responsable'),
-    )
-  }
+  void response
 }

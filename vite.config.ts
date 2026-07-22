@@ -6,6 +6,8 @@ import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/au
 import {
   handleItsmAdditionalFields,
   handleItsmAssignResponsible,
+  handleItsmCredentialsGet,
+  handleItsmCredentialsPost,
   handleItsmFile,
   handleItsmGroupSpecialists,
   handleItsmGroups,
@@ -14,13 +16,7 @@ import {
   handleItsmSearch,
   isProtectedItsmApi,
 } from './lib/itsmDevHandlers.js'
-import {
-  configureItsmRuntimeEnv,
-  warmItsmSessionToken,
-} from './lib/itsmUpstream.js'
-import {
-  resolveItsmIntegrationTokenFromEnv,
-} from './lib/env.js'
+import { configureDevServerEnv } from './lib/itsmUpstream.js'
 
 function createAuthMiddleware() {
   return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
@@ -34,6 +30,20 @@ function createAuthMiddleware() {
 
     if (pathname === '/api/auth/verify' && req.method === 'GET') {
       void handleAuthVerify(req, res)
+      return
+    }
+
+    if (pathname === '/api/itsm-credentials' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmCredentialsGet(req, res)
+      })
+      return
+    }
+
+    if (pathname === '/api/itsm-credentials' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmCredentialsPost(req, res)
+      })
       return
     }
 
@@ -106,22 +116,13 @@ function createAuthMiddleware() {
 }
 
 function authApiDevPlugin(env: Record<string, string>): Plugin {
-  configureItsmRuntimeEnv({
-    integrationToken: resolveItsmIntegrationTokenFromEnv(env),
-  })
-
+  configureDevServerEnv(env)
   const middleware = createAuthMiddleware()
 
   return {
     name: 'auth-api-dev',
     configureServer(server) {
       server.middlewares.use(middleware)
-      void warmItsmSessionToken().catch((error) => {
-        console.warn(
-          '[itsm] No se pudo precargar token de sesión:',
-          error instanceof Error ? error.message : error,
-        )
-      })
     },
     configurePreviewServer(server) {
       server.middlewares.use(middleware)

@@ -16,6 +16,12 @@ import {
 } from './assignResponsible.js'
 import { itsmFetch } from './itsmFetch.js'
 import { resolveFileContentType } from './itsmApi.js'
+import {
+  assertItsmCredentialsConfigured,
+  ItsmCredentialsMissingError,
+  itsmTokenMissingPayload,
+  mapUpstreamItsmResponse,
+} from './itsmCredentialsResponse.js'
 
 function sendJson(
   response: ServerResponse,
@@ -42,6 +48,19 @@ async function readRequestBody(request: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString('utf8')
 }
 
+function sendUpstreamResponse(
+  response: ServerResponse,
+  status: number,
+  body: string,
+  contentType?: string | null,
+): void {
+  response.statusCode = status
+  if (contentType) {
+    response.setHeader('Content-Type', contentType)
+  }
+  response.end(body)
+}
+
 async function proxyJsonPost(
   request: IncomingMessage,
   response: ServerResponse,
@@ -49,7 +68,13 @@ async function proxyJsonPost(
 ): Promise<void> {
   const user = await requireSessionFromAuthHeader(request.headers.authorization)
   if (!user) {
-    sendJson(response, 401, { error: 'Sesión no válida o expirada' })
+    sendJson(response, 401, { error: 'Sesión no válida o expirada', source: 'app' })
+    return
+  }
+
+  const credentials = assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
     return
   }
 
@@ -61,13 +86,24 @@ async function proxyJsonPost(
     })
 
     const responseBody = await upstream.text()
-    response.statusCode = upstream.status
-    response.setHeader(
-      'Content-Type',
+    const mapped = mapUpstreamItsmResponse(upstream.status, responseBody)
+    if (mapped.handled) {
+      sendJson(response, mapped.status, mapped.payload)
+      return
+    }
+
+    sendUpstreamResponse(
+      response,
+      mapped.status,
+      mapped.body,
       upstream.headers.get('content-type') ?? 'application/json',
     )
-    response.end(responseBody)
   } catch (error) {
+    if (error instanceof ItsmCredentialsMissingError) {
+      sendJson(response, 401, itsmTokenMissingPayload())
+      return
+    }
+
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
     sendJson(response, 502, { error: message })
@@ -81,7 +117,13 @@ async function proxyJsonGet(
 ): Promise<void> {
   const user = await requireSessionFromAuthHeader(request.headers.authorization)
   if (!user) {
-    sendJson(response, 401, { error: 'Sesión no válida o expirada' })
+    sendJson(response, 401, { error: 'Sesión no válida o expirada', source: 'app' })
+    return
+  }
+
+  const credentials = assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
     return
   }
 
@@ -91,13 +133,24 @@ async function proxyJsonGet(
     })
 
     const body = await upstream.text()
-    response.statusCode = upstream.status
-    response.setHeader(
-      'Content-Type',
+    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    if (mapped.handled) {
+      sendJson(response, mapped.status, mapped.payload)
+      return
+    }
+
+    sendUpstreamResponse(
+      response,
+      mapped.status,
+      body,
       upstream.headers.get('content-type') ?? 'application/json',
     )
-    response.end(body)
   } catch (error) {
+    if (error instanceof ItsmCredentialsMissingError) {
+      sendJson(response, 401, itsmTokenMissingPayload())
+      return
+    }
+
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
     sendJson(response, 502, { error: message })
@@ -112,7 +165,13 @@ async function proxyBinaryGet(
 ): Promise<void> {
   const user = await requireSessionFromAuthHeader(request.headers.authorization)
   if (!user) {
-    sendJson(response, 401, { error: 'Sesión no válida o expirada' })
+    sendJson(response, 401, { error: 'Sesión no válida o expirada', source: 'app' })
+    return
+  }
+
+  const credentials = assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
     return
   }
 
@@ -120,6 +179,13 @@ async function proxyBinaryGet(
     const upstream = await itsmFetch(targetUrl, {
       method: 'GET',
     })
+
+    if (upstream.status === 401) {
+      const body = await upstream.text()
+      const mapped = mapUpstreamItsmResponse(401, body)
+      sendJson(response, mapped.status, mapped.payload)
+      return
+    }
 
     const buffer = Buffer.from(await upstream.arrayBuffer())
     const contentType = resolveFileContentType(
@@ -142,6 +208,11 @@ async function proxyBinaryGet(
 
     response.end(buffer)
   } catch (error) {
+    if (error instanceof ItsmCredentialsMissingError) {
+      sendJson(response, 401, itsmTokenMissingPayload())
+      return
+    }
+
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
     sendJson(response, 502, { error: message })
@@ -152,32 +223,7 @@ export async function handleItsmSearch(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const user = await requireSessionFromAuthHeader(request.headers.authorization)
-  if (!user) {
-    sendJson(response, 401, { error: 'Sesión no válida o expirada' })
-    return
-  }
-
-  try {
-    const body = await readRequestBody(request)
-    const upstream = await itsmFetch(buildItsmSearchUrl(), {
-      method: 'POST',
-      body: body || '{}',
-    })
-
-    const responseBody = await upstream.text()
-    response.statusCode = upstream.status
-    response.setHeader(
-      'Content-Type',
-      upstream.headers.get('content-type') ?? 'application/json',
-    )
-    response.end(responseBody)
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    console.error('[itsm-search]', message)
-    sendJson(response, 502, { error: message })
-  }
+  await proxyJsonPost(request, response, buildItsmSearchUrl())
 }
 
 export async function handleItsmAdditionalFields(
@@ -265,16 +311,33 @@ export async function handleItsmGroups(
     return
   }
 
+  const credentials = assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
+    return
+  }
+
   try {
     const upstream = await fetchItsmGroups(serviceId, stateId)
     const body = await upstream.text()
-    response.statusCode = upstream.status
-    response.setHeader(
-      'Content-Type',
+    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    if (mapped.handled) {
+      sendJson(response, mapped.status, mapped.payload)
+      return
+    }
+
+    sendUpstreamResponse(
+      response,
+      upstream.status,
+      body,
       upstream.headers.get('content-type') ?? 'application/json',
     )
-    response.end(body)
   } catch (error) {
+    if (error instanceof ItsmCredentialsMissingError) {
+      sendJson(response, 401, itsmTokenMissingPayload())
+      return
+    }
+
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
     sendJson(response, 502, { error: message })
@@ -304,16 +367,33 @@ export async function handleItsmGroupSpecialists(
     return
   }
 
+  const credentials = assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
+    return
+  }
+
   try {
     const upstream = await fetchItsmGroupSpecialists(groupId, projectId)
     const body = await upstream.text()
-    response.statusCode = upstream.status
-    response.setHeader(
-      'Content-Type',
+    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    if (mapped.handled) {
+      sendJson(response, mapped.status, mapped.payload)
+      return
+    }
+
+    sendUpstreamResponse(
+      response,
+      upstream.status,
+      body,
       upstream.headers.get('content-type') ?? 'application/json',
     )
-    response.end(body)
   } catch (error) {
+    if (error instanceof ItsmCredentialsMissingError) {
+      sendJson(response, 401, itsmTokenMissingPayload())
+      return
+    }
+
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
     sendJson(response, 502, { error: message })
@@ -366,6 +446,12 @@ export async function handleItsmAssignResponsible(
     return
   }
 
+  const credentials = assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
+    return
+  }
+
   try {
     const body = await readJsonBody<AssignResponsibleBody>(request)
     const { itemId, groupId, responsibleId, itemContext } = body
@@ -412,3 +498,8 @@ export function isProtectedItsmApi(pathname: string, method?: string): boolean {
   if (pathname.startsWith('/api/itsm-file/') && method === 'GET') return true
   return false
 }
+
+export {
+  handleItsmCredentialsGet,
+  handleItsmCredentialsPost,
+} from './itsmCredentialsHandlers.js'

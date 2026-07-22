@@ -1,8 +1,5 @@
 import { buildItsmHeaders } from './itsmApi.js'
-import {
-  clearItsmSessionTokenCache,
-  refreshItsmSessionToken,
-} from './itsmSessionToken.js'
+import { clearItsmSharedCredentials } from './itsmSharedCredentials.js'
 
 function resolveContentType(init: RequestInit): string {
   if (init.method === 'GET' || init.method === 'HEAD') {
@@ -17,29 +14,19 @@ export async function itsmFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const contentType = resolveContentType(init)
-  let headers = {
-    ...(await buildItsmHeaders(contentType)),
+  const headers = {
+    ...buildItsmHeaders(contentType),
     ...((init.headers as Record<string, string> | undefined) ?? {}),
   }
 
-  let response = await fetch(url, {
+  const response = await fetch(url, {
     ...init,
     headers,
   })
 
-  if (response.status !== 401) {
-    return response
+  if (response.status === 401) {
+    clearItsmSharedCredentials()
   }
 
-  clearItsmSessionTokenCache()
-  await refreshItsmSessionToken()
-  headers = {
-    ...(await buildItsmHeaders(contentType, true)),
-    ...((init.headers as Record<string, string> | undefined) ?? {}),
-  }
-
-  return fetch(url, {
-    ...init,
-    headers,
-  })
+  return response
 }

@@ -5,6 +5,12 @@ import {
   resolveFileContentType,
 } from '../../lib/itsmApi.js'
 import { itsmFetch } from '../../lib/itsmFetch.js'
+import {
+  guardItsmCredentials,
+  handleItsmProxyError,
+} from '../../lib/itsmVercelProxy.js'
+import { itsmTokenRequiredPayload } from '../../lib/itsmCredentialsResponse.js'
+import { clearItsmSharedCredentials } from '../../lib/itsmSharedCredentials.js'
 
 export default async function handler(
   req: VercelRequest,
@@ -21,6 +27,8 @@ export default async function handler(
     return
   }
 
+  if (!guardItsmCredentials(res)) return
+
   const fileId = typeof req.query.id === 'string' ? req.query.id : undefined
   const fileName =
     typeof req.query.fileName === 'string' ? req.query.fileName : undefined
@@ -34,6 +42,13 @@ export default async function handler(
     const upstream = await itsmFetch(buildFileUrl(fileId), {
       method: 'GET',
     })
+
+    if (upstream.status === 401) {
+      const body = await upstream.text()
+      clearItsmSharedCredentials()
+      res.status(401).json(itsmTokenRequiredPayload(body))
+      return
+    }
 
     const buffer = Buffer.from(await upstream.arrayBuffer())
     const contentType = resolveFileContentType(
@@ -57,8 +72,6 @@ export default async function handler(
 
     res.end(buffer)
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    res.status(502).json({ error: message })
+    handleItsmProxyError(res, error)
   }
 }

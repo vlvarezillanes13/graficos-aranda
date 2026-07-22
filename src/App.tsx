@@ -9,6 +9,7 @@ import { LoginPage } from './components/LoginPage'
 import { ResponsibleStateMatrixTable } from './components/ResponsibleStateMatrix'
 import { SummaryCards } from './components/SummaryCards'
 import { UrgentCasesModal } from './components/UrgentCasesModal'
+import { ItsmTokenModal } from './components/ItsmTokenModal'
 import {
   getSessionUsername,
   getSessionIsAdmin,
@@ -16,6 +17,11 @@ import {
   verifySession,
 } from './services/authService'
 import { fetchItsmItems } from './services/itsmService'
+import { fetchItsmCredentialsStatus } from './services/itsmCredentialsService'
+import {
+  ItsmTokenRequiredError,
+  registerItsmTokenRequestHandler,
+} from './services/itsmApiClient'
 import type { FetchResult } from './types/itsm'
 import type { GroupField, IncidentItem } from './types/incident'
 import {
@@ -32,10 +38,11 @@ import {
   type MatrixSelection,
 } from './utils/aggregations'
 import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
-import { filterUrgentItems, readUrgentCaseIds } from './utils/urgentCases'
+import { filterUrgentItems } from './utils/urgentCases'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
 import { useBackgroundRefresh } from './hooks/useBackgroundRefresh'
 import { useDeliveryDates } from './hooks/useDeliveryDates'
+import { useSharedUrgentCases } from './hooks/useSharedUrgentCases'
 import {
   clearDeliveryDatesCache,
   fetchDeliveryDatesForItems,
@@ -73,14 +80,22 @@ function App() {
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
   const [selectedItem, setSelectedItem] = useState<IncidentItem | null>(null)
   const [urgentModalOpen, setUrgentModalOpen] = useState(false)
-  const [urgentIds, setUrgentIds] = useState<string[]>([])
   const [exporting, setExporting] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [itsmTokenModalOpen, setItsmTokenModalOpen] = useState(false)
+  const [itsmTokenMessage, setItsmTokenMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!authenticated) return
-    setUrgentIds(readUrgentCaseIds())
-  }, [authenticated])
+  const username = getSessionUsername()
+
+  const {
+    urgentIds,
+    updatedBy: urgentUpdatedBy,
+    updatedAt: urgentUpdatedAt,
+    connected: urgentRealtimeConnected,
+    realtimeEnabled: urgentRealtimeEnabled,
+    connectionError: urgentConnectionError,
+    updateUrgentIds,
+  } = useSharedUrgentCases(username, authenticated)
 
   const applyFetchResult = useCallback((result: FetchResult) => {
     setItems(result.items)
@@ -92,6 +107,12 @@ function App() {
     })
   }, [])
 
+  const openItsmTokenModal = useCallback((message?: string) => {
+    setItsmTokenMessage(message ?? null)
+    setItsmTokenModalOpen(true)
+    setLoading(false)
+  }, [])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -100,13 +121,17 @@ function App() {
       const result = await fetchItsmItems()
       applyFetchResult(result)
     } catch (err) {
+      if (err instanceof ItsmTokenRequiredError) {
+        openItsmTokenModal(err.message)
+        return
+      }
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setItems([])
       setTotalItems(0)
     } finally {
       setLoading(false)
     }
-  }, [applyFetchResult])
+  }, [applyFetchResult, openItsmTokenModal])
 
   const refreshDataInBackground = useCallback(async () => {
     try {
@@ -118,6 +143,14 @@ function App() {
   }, [applyFetchResult])
 
   useEffect(() => {
+    registerItsmTokenRequestHandler((message) => {
+      openItsmTokenModal(message)
+    })
+
+    return () => registerItsmTokenRequestHandler(null)
+  }, [openItsmTokenModal])
+
+  useEffect(() => {
     void verifySession().then((valid) => {
       setAuthenticated(valid)
       setIsAdmin(valid && getSessionIsAdmin())
@@ -127,8 +160,22 @@ function App() {
 
   useEffect(() => {
     if (!authenticated) return
+
+    void fetchItsmCredentialsStatus()
+      .then((status) => {
+        if (!status.configured) {
+          openItsmTokenModal('Configura el token ITSM para cargar los tickets.')
+        }
+      })
+      .catch(() => {
+        openItsmTokenModal('Configura el token ITSM para cargar los tickets.')
+      })
+  }, [authenticated, openItsmTokenModal])
+
+  useEffect(() => {
+    if (!authenticated || itsmTokenModalOpen) return
     void loadData()
-  }, [authenticated, loadData])
+  }, [authenticated, itsmTokenModalOpen, loadData])
 
   useBackgroundRefresh(
     refreshDataInBackground,
@@ -203,7 +250,13 @@ function App() {
     () => filterUrgentItems(items, urgentIds).length,
     [items, urgentIds],
   )
-  const username = getSessionUsername()
+
+  const handleUrgentIdsChange = useCallback(
+    async (ids: string[]) => {
+      await updateUrgentIds(ids)
+    },
+    [updateUrgentIds],
+  )
 
   const handleMatrixSelect = useCallback((selection: MatrixSelection) => {
     setFilters((current) => {
@@ -235,7 +288,6 @@ function App() {
     setFetchedAt(null)
     setFilters(DEFAULT_FILTERS)
     setSelectedItem(null)
-    setUrgentIds([])
     setUrgentModalOpen(false)
     setIsAdmin(false)
     clearDeliveryDatesCache()
@@ -467,9 +519,24 @@ function App() {
         items={items}
         urgentIds={urgentIds}
         fetchedAt={fetchedAt}
-        onUrgentIdsChange={setUrgentIds}
+        onUrgentIdsChange={handleUrgentIdsChange}
+        connected={urgentRealtimeConnected}
+        realtimeEnabled={urgentRealtimeEnabled}
+        connectionError={urgentConnectionError}
+        updatedBy={urgentUpdatedBy}
+        updatedAt={urgentUpdatedAt}
         onClose={() => setUrgentModalOpen(false)}
         onSelect={setSelectedItem}
+      />
+
+      <ItsmTokenModal
+        open={itsmTokenModalOpen}
+        message={itsmTokenMessage}
+        onSaved={async () => {
+          setItsmTokenModalOpen(false)
+          setItsmTokenMessage(null)
+          await loadData()
+        }}
       />
 
       <ItemDetailPanel

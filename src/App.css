@@ -346,6 +346,109 @@
   padding: 1rem 1.25rem 1.25rem;
 }
 
+.itsm-token-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.itsm-token-modal {
+  width: min(560px, 100%);
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+}
+
+.itsm-token-header {
+  padding: 1.25rem 1.25rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.itsm-token-header h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.itsm-token-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.itsm-token-message {
+  margin-top: 0.75rem !important;
+  color: #b45309 !important;
+}
+
+.itsm-token-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+}
+
+.itsm-token-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.92rem;
+}
+
+.itsm-token-field span {
+  font-weight: 600;
+  color: #334155;
+}
+
+.itsm-token-field textarea,
+.itsm-token-field input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+}
+
+.itsm-token-field textarea {
+  resize: vertical;
+  min-height: 6rem;
+}
+
+.itsm-token-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.itsm-token-actions {
+  padding: 0.75rem 1.25rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.itsm-token-submit {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: #0f766e;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.itsm-token-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .urgent-input-panel {
   margin-bottom: 1rem;
   padding: 1rem;
@@ -400,6 +503,20 @@
 
 .urgent-missing-alert {
   margin-bottom: 1rem;
+}
+
+.urgent-realtime-status {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #64748b);
+}
+
+.urgent-realtime-status--online {
+  color: #15803d;
+}
+
+.urgent-realtime-status--offline {
+  color: #b45309;
 }
 
 .custom-controls {

@@ -3,31 +3,37 @@ import {
   verifySessionToken,
   type SessionInfo,
 } from './auth.js'
-import { getItsmSessionToken } from './itsmSessionToken.js'
-
-export {
-  getItsmIntegrationToken,
-  ITSM_BOOTSTRAP_ERROR,
-} from './env.js'
+import {
+  getItsmSharedCookie,
+  getItsmSharedToken,
+} from './itsmSharedCredentials.js'
+import { ItsmCredentialsMissingError } from './itsmCredentialsResponse.js'
 
 export const ITSM_ORIGIN = 'https://itsm.sonda.com'
 export const ITSM_REFERER = `${ITSM_ORIGIN}/asmsspecialist/index.html`
 
-export async function buildItsmHeaders(
+export function buildItsmHeaders(
   contentType = 'application/json',
-  forceRefresh = false,
-): Promise<Record<string, string>> {
-  const token = await getItsmSessionToken(forceRefresh)
+): Record<string, string> {
+  const token = getItsmSharedToken()
+  if (!token) {
+    throw new ItsmCredentialsMissingError()
+  }
 
   const headers: Record<string, string> = {
     Accept: 'application/json, text/plain, */*',
     Origin: ITSM_ORIGIN,
     Referer: ITSM_REFERER,
-    'x-authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+    'x-authorization': token,
   }
 
   if (contentType) {
     headers['Content-Type'] = contentType
+  }
+
+  const cookie = getItsmSharedCookie()
+  if (cookie) {
+    headers.Cookie = cookie
   }
 
   return headers

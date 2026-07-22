@@ -3,7 +3,7 @@ import type {
   ItemDeliveryDates,
 } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
-import { getAuthHeaders } from './authService'
+import { ensureItsmApiOk, fetchItsmApi } from './itsmApiClient'
 
 const DELIVERY_FIELD_NAMES = new Set(['fecha de entrega'])
 const DELIVERY_TEST_FIELD_NAMES = new Set(['fecha entrega test'])
@@ -123,24 +123,16 @@ export function clearDeliveryDatesCache(): void {
 async function fetchItemDeliveryDatesUncached(
   item: IncidentItem,
 ): Promise<ItemDeliveryDates> {
-  const response = await fetch('/api/itsm-additionalfields', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json, text/plain, */*',
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(buildAdditionalFieldsBody(item)),
-  })
-
-  if (!response.ok) {
-    const detail = await response.json().catch(() => ({}))
-    throw new Error(
-      typeof detail.error === 'string'
-        ? detail.error
-        : `Error al cargar fechas (${response.status})`,
-    )
-  }
+  const response = await ensureItsmApiOk(
+    await fetchItsmApi('/api/itsm-additionalfields', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(buildAdditionalFieldsBody(item)),
+    }),
+  )
 
   const payload = (await response.json()) as unknown
   const dates = extractDeliveryDatesFromFields(

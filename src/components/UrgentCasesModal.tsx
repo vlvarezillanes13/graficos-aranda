@@ -6,8 +6,6 @@ import {
   formatUrgentCaseIds,
   getMissingUrgentIds,
   parseUrgentCaseIds,
-  readUrgentCaseIds,
-  writeUrgentCaseIds,
 } from '../utils/urgentCases'
 import { useDeliveryDates } from '../hooks/useDeliveryDates'
 import { fetchDeliveryDatesForItems } from '../services/deliveryDatesService'
@@ -18,7 +16,12 @@ interface UrgentCasesModalProps {
   items: IncidentItem[]
   urgentIds: string[]
   fetchedAt?: Date | null
-  onUrgentIdsChange: (ids: string[]) => void
+  onUrgentIdsChange: (ids: string[]) => void | Promise<void>
+  connected?: boolean
+  realtimeEnabled?: boolean
+  connectionError?: string
+  updatedBy?: string | null
+  updatedAt?: string | null
   onClose: () => void
   onSelect: (item: IncidentItem) => void
 }
@@ -29,12 +32,18 @@ export function UrgentCasesModal({
   urgentIds,
   fetchedAt,
   onUrgentIdsChange,
+  connected = false,
+  realtimeEnabled = false,
+  connectionError = '',
+  updatedBy = null,
+  updatedAt = null,
   onClose,
   onSelect,
 }: UrgentCasesModalProps) {
   const [inputValue, setInputValue] = useState('')
   const [inputError, setInputError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -60,11 +69,22 @@ export function UrgentCasesModal({
   }, [open, onClose])
 
   const applyIds = useCallback(
-    (ids: string[]) => {
-      writeUrgentCaseIds(ids)
-      onUrgentIdsChange(ids)
-      setInputValue(formatUrgentCaseIds(ids))
+    async (ids: string[]) => {
+      setSaving(true)
       setInputError(null)
+
+      try {
+        await onUrgentIdsChange(ids)
+        setInputValue(formatUrgentCaseIds(ids))
+      } catch (error) {
+        setInputError(
+          error instanceof Error
+            ? error.message
+            : 'No fue posible actualizar la lista compartida',
+        )
+      } finally {
+        setSaving(false)
+      }
     },
     [onUrgentIdsChange],
   )
@@ -75,20 +95,12 @@ export function UrgentCasesModal({
       setInputError('Ingresa al menos un ID (ej: IM-8892122; RF-8947234)')
       return
     }
-    applyIds(ids)
-  }
-
-  const handleLoadFromSession = () => {
-    const ids = readUrgentCaseIds()
-    applyIds(ids)
-    if (ids.length === 0) {
-      setInputError('No hay IDs guardados en sessionStorage (graficos_urgent_cases)')
-    }
+    void applyIds(ids)
   }
 
   const handleClear = () => {
     setInputValue('')
-    applyIds([])
+    void applyIds([])
   }
 
   const urgentItems = useMemo(
@@ -116,6 +128,12 @@ export function UrgentCasesModal({
     }
   }
 
+  const connectionLabel = !realtimeEnabled
+    ? 'Solo local (sin servidor realtime)'
+    : connected
+      ? 'Sincronizado en tiempo real'
+      : 'Desconectado'
+
   if (!open) return null
 
   return (
@@ -134,7 +152,29 @@ export function UrgentCasesModal({
         <header className="urgent-modal-header">
           <div className="urgent-modal-heading">
             <h2 id="urgent-modal-title">Casos urgentes</h2>
-            <p>Pega los IDs desde pantalla o cárgalos desde sessionStorage.</p>
+            <p>
+              Lista compartida entre todos los usuarios conectados. Al aplicar,
+              todos ven la misma selección.
+            </p>
+            <p className="urgent-realtime-status">
+              Estado:{' '}
+              <strong
+                className={
+                  connected
+                    ? 'urgent-realtime-status--online'
+                    : 'urgent-realtime-status--offline'
+                }
+              >
+                {connectionLabel}
+              </strong>
+              {updatedBy && updatedAt && (
+                <>
+                  {' '}
+                  · Actualizado por <strong>{updatedBy}</strong> el{' '}
+                  {new Date(updatedAt).toLocaleString()}
+                </>
+              )}
+            </p>
           </div>
 
           <div className="urgent-modal-actions">
@@ -165,6 +205,12 @@ export function UrgentCasesModal({
         </header>
 
         <div className="urgent-modal-body">
+          {connectionError && (
+            <div className="alert info urgent-missing-alert" role="status">
+              <p>{connectionError}</p>
+            </div>
+          )}
+
           <div className="urgent-input-panel">
             <label className="urgent-input-label" htmlFor="urgent-cases-input">
               Lista de casos urgentes
@@ -179,6 +225,7 @@ export function UrgentCasesModal({
               }}
               placeholder="IM-8892122; IM-8970477; RF-8947234"
               rows={4}
+              disabled={saving}
             />
             {inputError && (
               <p className="urgent-input-error" role="alert">
@@ -190,21 +237,15 @@ export function UrgentCasesModal({
                 type="button"
                 className="ghost-button"
                 onClick={handleApplyFromScreen}
+                disabled={saving}
               >
-                Aplicar lista
-              </button>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleLoadFromSession}
-              >
-                Cargar desde sesión
+                {saving ? 'Aplicando para todos...' : 'Aplicar para todos'}
               </button>
               <button
                 type="button"
                 className="ghost-button"
                 onClick={handleClear}
-                disabled={!inputValue && urgentIds.length === 0}
+                disabled={saving || (!inputValue && urgentIds.length === 0)}
               >
                 Limpiar
               </button>

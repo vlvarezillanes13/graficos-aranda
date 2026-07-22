@@ -12,13 +12,8 @@ import {
   requireAdminSessionFromAuthHeader,
 } from './itsmApi.js'
 import {
-  getItsmIntegrationToken as getProdItsmIntegrationToken,
+  resolveAuthSessionSecretFromEnv,
 } from './env.js'
-import {
-  getCachedItsmSessionToken,
-  getItsmSessionToken,
-  warmItsmSessionToken,
-} from './itsmSessionToken.js'
 
 export {
   buildAdditionalFieldsUrl,
@@ -32,27 +27,12 @@ export {
   requireSession,
   requireSessionFromAuthHeader,
   requireAdminSessionFromAuthHeader,
-  getCachedItsmSessionToken,
-  getItsmSessionToken,
-  warmItsmSessionToken,
 }
 
-interface ItsmRuntimeEnv {
-  integrationToken?: string
-}
-
-let runtimeEnv: ItsmRuntimeEnv | null = null
-
-export function configureItsmRuntimeEnv(env: ItsmRuntimeEnv): void {
-  runtimeEnv = {
-    integrationToken: env.integrationToken?.trim(),
+export function configureDevServerEnv(env: Record<string, string>): void {
+  const authSecret = resolveAuthSessionSecretFromEnv(env)
+  if (authSecret) {
+    process.env.AUTH_SESSION_SECRET = authSecret
+    process.env.VITE_AUTH_SESSION_SECRET = authSecret
   }
-
-  if (runtimeEnv.integrationToken) {
-    process.env.ITSM_INTEGRATION_TOKEN = runtimeEnv.integrationToken
-  }
-}
-
-export function getItsmIntegrationToken(): string | undefined {
-  return runtimeEnv?.integrationToken ?? getProdItsmIntegrationToken()
 }

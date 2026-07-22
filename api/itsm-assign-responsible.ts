@@ -4,6 +4,7 @@ import {
   type ItemAssignContext,
 } from '../lib/assignResponsible.js'
 import { requireAdminSessionFromAuthHeader } from '../lib/itsmApi.js'
+import { guardItsmCredentials, handleItsmProxyError } from '../lib/itsmVercelProxy.js'
 
 function isValidContext(value: unknown): value is ItemAssignContext {
   if (!value || typeof value !== 'object') return false
@@ -64,6 +65,8 @@ export default async function handler(
     return
   }
 
+  if (!guardItsmCredentials(res)) return
+
   try {
     await assignItemResponsible(
       String(itemId),
@@ -73,8 +76,6 @@ export default async function handler(
     )
     res.status(200).json({ ok: true })
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    res.status(502).json({ error: message })
+    handleItsmProxyError(res, error)
   }
 }

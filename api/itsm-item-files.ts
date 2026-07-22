@@ -4,6 +4,11 @@ import {
   requireSessionFromAuthHeader,
 } from '../lib/itsmApi.js'
 import { itsmFetch } from '../lib/itsmFetch.js'
+import {
+  finishItsmTextProxy,
+  guardItsmCredentials,
+  handleItsmProxyError,
+} from '../lib/itsmVercelProxy.js'
 
 export default async function handler(
   req: VercelRequest,
@@ -20,6 +25,8 @@ export default async function handler(
     return
   }
 
+  if (!guardItsmCredentials(res)) return
+
   const itemId = typeof req.query.itemId === 'string' ? req.query.itemId : undefined
   const itemType =
     typeof req.query.itemType === 'string' ? req.query.itemType : '1'
@@ -33,17 +40,8 @@ export default async function handler(
     const upstream = await itsmFetch(buildItemFilesUrl(itemId, itemType), {
       method: 'GET',
     })
-
-    const body = await upstream.text()
-    res.status(upstream.status)
-    res.setHeader(
-      'Content-Type',
-      upstream.headers.get('content-type') ?? 'application/json',
-    )
-    res.end(body)
+    await finishItsmTextProxy(res, upstream)
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Error al conectar con ITSM'
-    res.status(502).json({ error: message })
+    handleItsmProxyError(res, error)
   }
 }
