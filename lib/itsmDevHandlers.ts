@@ -183,8 +183,10 @@ async function proxyBinaryGet(
     if (upstream.status === 401) {
       const body = await upstream.text()
       const mapped = await mapUpstreamItsmResponse(401, body)
-      sendJson(response, mapped.status, mapped.payload)
-      return
+      if (mapped.handled) {
+        sendJson(response, mapped.status, mapped.payload)
+        return
+      }
     }
 
     const buffer = Buffer.from(await upstream.arrayBuffer())

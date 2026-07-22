@@ -1,25 +1,35 @@
 import type { ItemAttachment, ItemFilesResponse } from '../types/attachment'
 import { ensureItsmApiOk, fetchItsmApi } from './itsmApiClient'
 
-export type PreviewKind = 'image' | 'pdf' | 'other'
+export type PreviewKind = 'image' | 'pdf' | 'text' | 'unsupported'
 
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
+const TEXT_EXTENSIONS = ['txt', 'csv', 'json', 'xml', 'html', 'htm', 'md', 'log']
 
 export function getPreviewKind(fileName: string, contentType: string): PreviewKind {
   const normalizedType = contentType.toLowerCase()
   if (normalizedType.startsWith('image/')) return 'image'
   if (normalizedType === 'application/pdf') return 'pdf'
+  if (
+    normalizedType.startsWith('text/') ||
+    normalizedType === 'application/json' ||
+    normalizedType === 'application/xml'
+  ) {
+    return 'text'
+  }
 
   const extension = fileName.split('.').pop()?.toLowerCase()
   if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) {
     return 'image'
   }
   if (extension === 'pdf') return 'pdf'
-  return 'other'
+  if (extension && TEXT_EXTENSIONS.includes(extension)) return 'text'
+  return 'unsupported'
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export async function fetchItemFiles(

@@ -27,7 +27,7 @@ async function readItsmErrorMessage(response: Response): Promise<string> {
   return `Error ITSM (${response.status})`
 }
 
-function notifyTokenRequired(response: Response, data: unknown): void {
+function notifyTokenRequired(data: unknown): void {
   const record = data && typeof data === 'object' ? (data as Record<string, unknown>) : {}
   if (record.code === ITSM_TOKEN_REQUIRED || record.source === 'itsm') {
     const message = typeof record.error === 'string' ? record.error : undefined
@@ -50,7 +50,7 @@ export async function fetchItsmApi(
 
   if (response.status === 401) {
     const data = await response.clone().json().catch(() => ({}))
-    notifyTokenRequired(response, data)
+    notifyTokenRequired(data)
   }
 
   return response
@@ -60,7 +60,7 @@ export async function ensureItsmApiOk(response: Response): Promise<Response> {
   if (!response.ok) {
     const data = await response.json().catch(() => ({}))
     if (response.status === 401) {
-      notifyTokenRequired(response, data)
+      notifyTokenRequired(data)
     }
     throw new Error(await readItsmErrorMessage(response))
   }

@@ -19,15 +19,6 @@ function parsePaginatedContent<T>(payload: unknown): T[] {
   return []
 }
 
-async function readErrorMessage(response: Response, fallback: string): Promise<string> {
-  const data = await response.json().catch(() => ({}))
-  if (data && typeof data === 'object' && typeof data.error === 'string') {
-    return data.error
-  }
-
-  return fallback
-}
-
 export function buildItemAssignContext(item: IncidentItem): ItemAssignContext {
   return {
     id: item.id,

@@ -1,9 +1,20 @@
 const memoryStore = new Map<string, unknown>()
 
-export function isPersistentStorageEnabled(): boolean {
+function hasKvEnv(): boolean {
   return Boolean(
     process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN,
   )
+}
+
+function hasUpstashEnv(): boolean {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL &&
+      process.env.UPSTASH_REDIS_REST_TOKEN,
+  )
+}
+
+export function isPersistentStorageEnabled(): boolean {
+  return hasKvEnv() || hasUpstashEnv()
 }
 
 export async function readStorageJson<T>(key: string): Promise<T | null> {
