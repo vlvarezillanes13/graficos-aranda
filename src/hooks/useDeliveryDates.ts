@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
 import {
@@ -11,6 +11,9 @@ export function useDeliveryDates(items: IncidentItem[]) {
     () => new Map<number, ItemDeliveryDates>(),
   )
   const [loading, setLoading] = useState(false)
+  const itemsRef = useRef(items)
+
+  itemsRef.current = items
 
   const itemIdsKey = useMemo(
     () =>
@@ -22,17 +25,19 @@ export function useDeliveryDates(items: IncidentItem[]) {
   )
 
   useEffect(() => {
+    const currentItems = itemsRef.current
+
     if (!itemIdsKey) {
       setDatesById(new Map())
       return
     }
 
     let cancelled = false
-    const missing = items.filter((item) => !getCachedDeliveryDates(item.id))
+    const missing = currentItems.filter((item) => !getCachedDeliveryDates(item.id))
 
     const seedFromCache = () => {
       const seeded = new Map<number, ItemDeliveryDates>()
-      for (const item of items) {
+      for (const item of currentItems) {
         const cached = getCachedDeliveryDates(item.id)
         if (cached) seeded.set(item.id, cached)
       }
@@ -67,7 +72,7 @@ export function useDeliveryDates(items: IncidentItem[]) {
     return () => {
       cancelled = true
     }
-  }, [itemIdsKey, items])
+  }, [itemIdsKey])
 
   return { datesById, loading }
 }

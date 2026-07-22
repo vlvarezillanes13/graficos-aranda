@@ -2,14 +2,13 @@ import {
   extractBearerToken,
   verifySessionToken,
 } from '../lib/auth.js'
+import { buildItsmSearchUrl } from '../lib/itsmApi.js'
 import {
-  getItsmAuthCookie,
-  getItsmAuthToken,
-  ITSM_AUTH_TOKEN_ERROR,
+  getItsmIntegrationToken,
+  ITSM_BOOTSTRAP_ERROR,
 } from '../lib/env.js'
-
-const ITSM_ORIGIN = 'https://itsm.sonda.com'
-const ITSM_SEARCH_URL = `${ITSM_ORIGIN}/asmsconsole/api/v9/item/search?language=0`
+import { getCachedItsmSessionToken } from '../lib/itsmSessionToken.js'
+import { itsmFetch } from '../lib/itsmFetch.js'
 
 export const config = {
   runtime: 'edge',
@@ -19,8 +18,8 @@ export default async function handler(request: Request): Promise<Response> {
   if (request.method === 'GET') {
     return Response.json({
       ok: true,
-      tokenConfigured: Boolean(getItsmAuthToken()),
-      cookieConfigured: Boolean(getItsmAuthCookie()),
+      bootstrapConfigured: Boolean(getItsmIntegrationToken()),
+      sessionTokenCached: Boolean(getCachedItsmSessionToken()),
     })
   }
 
@@ -34,28 +33,13 @@ export default async function handler(request: Request): Promise<Response> {
     return Response.json({ error: 'Sesión no válida o expirada' }, { status: 401 })
   }
 
-  const token = getItsmAuthToken()
-  if (!token) {
-    return Response.json({ error: ITSM_AUTH_TOKEN_ERROR }, { status: 500 })
-  }
-
-  const headers: Record<string, string> = {
-    Accept: 'application/json, text/plain, */*',
-    'Content-Type': 'application/json',
-    Origin: ITSM_ORIGIN,
-    Referer: `${ITSM_ORIGIN}/asmsspecialist/index.html`,
-    'x-authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
-  }
-
-  const cookie = getItsmAuthCookie()
-  if (cookie) {
-    headers.Cookie = cookie
+  if (!getItsmIntegrationToken()) {
+    return Response.json({ error: ITSM_BOOTSTRAP_ERROR }, { status: 500 })
   }
 
   try {
-    const upstream = await fetch(ITSM_SEARCH_URL, {
+    const upstream = await itsmFetch(buildItsmSearchUrl(), {
       method: 'POST',
-      headers,
       body: (await request.text()) || '{}',
     })
 

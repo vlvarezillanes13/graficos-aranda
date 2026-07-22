@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { Plugin, ProxyOptions } from 'vite'
+import type { Plugin } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
 import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer.js'
 import {
@@ -11,49 +11,16 @@ import {
   handleItsmGroups,
   handleItsmItemFiles,
   handleItsmItemHistory,
+  handleItsmSearch,
   isProtectedItsmApi,
 } from './lib/itsmDevHandlers.js'
-import { configureItsmRuntimeEnv } from './lib/itsmUpstream.js'
 import {
-  formatItsmBearerToken,
-  resolveItsmAuthCookieFromEnv,
-  resolveItsmAuthTokenFromEnv,
+  configureItsmRuntimeEnv,
+  warmItsmSessionToken,
+} from './lib/itsmUpstream.js'
+import {
+  resolveItsmIntegrationTokenFromEnv,
 } from './lib/env.js'
-
-function createItsmSearchProxy(env: Record<string, string>): ProxyOptions {
-  return {
-    target: 'https://itsm.sonda.com',
-    changeOrigin: true,
-    secure: true,
-    rewrite: () => '/asmsconsole/api/v9/item/search?language=0',
-    configure: (proxy) => {
-      proxy.on('proxyReq', (proxyReq, req) => {
-        proxyReq.setHeader('Accept', 'application/json, text/plain, */*')
-        proxyReq.setHeader('Content-Type', 'application/json')
-        proxyReq.setHeader('Origin', 'https://itsm.sonda.com')
-        proxyReq.setHeader(
-          'Referer',
-          'https://itsm.sonda.com/asmsspecialist/index.html',
-        )
-
-        const token = resolveItsmAuthTokenFromEnv(env)
-        if (token) {
-          proxyReq.setHeader('x-authorization', formatItsmBearerToken(token))
-        }
-
-        const cookie = resolveItsmAuthCookieFromEnv(env)
-        if (cookie) {
-          proxyReq.setHeader('Cookie', cookie)
-        }
-
-        const authorization = req.headers.authorization
-        if (authorization) {
-          proxyReq.setHeader('Authorization', authorization)
-        }
-      })
-    },
-  }
-}
 
 function createAuthMiddleware() {
   return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
@@ -67,6 +34,13 @@ function createAuthMiddleware() {
 
     if (pathname === '/api/auth/verify' && req.method === 'GET') {
       void handleAuthVerify(req, res)
+      return
+    }
+
+    if (pathname === '/api/itsm-search' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmSearch(req, res)
+      })
       return
     }
 
@@ -133,8 +107,7 @@ function createAuthMiddleware() {
 
 function authApiDevPlugin(env: Record<string, string>): Plugin {
   configureItsmRuntimeEnv({
-    token: resolveItsmAuthTokenFromEnv(env),
-    cookie: resolveItsmAuthCookieFromEnv(env),
+    integrationToken: resolveItsmIntegrationTokenFromEnv(env),
   })
 
   const middleware = createAuthMiddleware()
@@ -143,6 +116,12 @@ function authApiDevPlugin(env: Record<string, string>): Plugin {
     name: 'auth-api-dev',
     configureServer(server) {
       server.middlewares.use(middleware)
+      void warmItsmSessionToken().catch((error) => {
+        console.warn(
+          '[itsm] No se pudo precargar token de sesión:',
+          error instanceof Error ? error.message : error,
+        )
+      })
     },
     configurePreviewServer(server) {
       server.middlewares.use(middleware)
@@ -152,21 +131,14 @@ function authApiDevPlugin(env: Record<string, string>): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const itsmSearchProxy = createItsmSearchProxy(env)
 
   return {
     plugins: [react(), authApiDevPlugin(env)],
     server: {
       port: 5173,
-      proxy: {
-        '/api/itsm-search': itsmSearchProxy,
-      },
     },
     preview: {
       port: 4173,
-      proxy: {
-        '/api/itsm-search': itsmSearchProxy,
-      },
     },
   }
 })

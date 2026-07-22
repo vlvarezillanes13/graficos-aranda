@@ -4,23 +4,23 @@ import {
   type SessionInfo,
 } from './auth.js'
 import {
-  getItsmAuthCookie,
-  getItsmAuthToken,
-  ITSM_AUTH_TOKEN_ERROR,
+  ITSM_BOOTSTRAP_ERROR,
 } from './env.js'
+import { getItsmSessionToken } from './itsmSessionToken.js'
 
-export { getItsmAuthCookie, getItsmAuthToken } from './env.js'
+export {
+  getItsmIntegrationToken,
+  ITSM_BOOTSTRAP_ERROR,
+} from './env.js'
 
 export const ITSM_ORIGIN = 'https://itsm.sonda.com'
 export const ITSM_REFERER = `${ITSM_ORIGIN}/asmsspecialist/index.html`
 
-export function buildItsmHeaders(
+export async function buildItsmHeaders(
   contentType = 'application/json',
-): Record<string, string> {
-  const token = getItsmAuthToken()
-  if (!token) {
-    throw new Error(ITSM_AUTH_TOKEN_ERROR)
-  }
+  forceRefresh = false,
+): Promise<Record<string, string>> {
+  const token = await getItsmSessionToken(forceRefresh)
 
   const headers: Record<string, string> = {
     Accept: 'application/json, text/plain, */*',
@@ -31,11 +31,6 @@ export function buildItsmHeaders(
 
   if (contentType) {
     headers['Content-Type'] = contentType
-  }
-
-  const cookie = getItsmAuthCookie()
-  if (cookie) {
-    headers.Cookie = cookie
   }
 
   return headers
@@ -114,6 +109,10 @@ export function buildFileUrl(fileId: string): string {
 
 export function buildAdditionalFieldsUrl(): string {
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/additionalfields`
+}
+
+export function buildItsmSearchUrl(): string {
+  return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/search?language=0`
 }
 
 export function buildItemUrl(itemId: string): string {

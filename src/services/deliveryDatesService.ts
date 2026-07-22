@@ -15,6 +15,7 @@ const TEST_APROBADO_FIELD_NAMES = new Set(['fecha test aprobado'])
 const FETCH_CONCURRENCY = 6
 
 const cache = new Map<number, ItemDeliveryDates>()
+const inflight = new Map<number, Promise<ItemDeliveryDates>>()
 
 function parseAdditionalFieldsResponse(payload: unknown): AdditionalField[] {
   if (Array.isArray(payload)) {
@@ -116,14 +117,12 @@ export function getCachedDeliveryDates(
 
 export function clearDeliveryDatesCache(): void {
   cache.clear()
+  inflight.clear()
 }
 
-export async function fetchItemDeliveryDates(
+async function fetchItemDeliveryDatesUncached(
   item: IncidentItem,
 ): Promise<ItemDeliveryDates> {
-  const cached = cache.get(item.id)
-  if (cached) return cached
-
   const response = await fetch('/api/itsm-additionalfields', {
     method: 'POST',
     headers: {
@@ -151,12 +150,31 @@ export async function fetchItemDeliveryDates(
   return dates
 }
 
+export async function fetchItemDeliveryDates(
+  item: IncidentItem,
+): Promise<ItemDeliveryDates> {
+  const cached = cache.get(item.id)
+  if (cached) return cached
+
+  const pending = inflight.get(item.id)
+  if (pending) return pending
+
+  const request = fetchItemDeliveryDatesUncached(item).finally(() => {
+    inflight.delete(item.id)
+  })
+
+  inflight.set(item.id, request)
+  return request
+}
+
 async function fetchWithConcurrency(
   items: IncidentItem[],
   concurrency: number,
 ): Promise<Map<number, ItemDeliveryDates>> {
   const result = new Map<number, ItemDeliveryDates>()
-  const queue = items.filter((item) => !cache.has(item.id))
+  const queue = items.filter(
+    (item) => !cache.has(item.id) && !inflight.has(item.id),
+  )
 
   if (queue.length === 0) {
     for (const item of items) {
@@ -173,7 +191,7 @@ async function fetchWithConcurrency(
       const current = queue[index]
       index += 1
 
-      try {
+    try {
         const dates = await fetchItemDeliveryDates(current)
         result.set(current.id, dates)
       } catch {

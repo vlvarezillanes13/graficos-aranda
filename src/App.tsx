@@ -97,7 +97,6 @@ function App() {
     setError(null)
 
     try {
-      clearDeliveryDatesCache()
       const result = await fetchItsmItems()
       applyFetchResult(result)
     } catch (err) {

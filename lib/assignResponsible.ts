@@ -4,7 +4,7 @@ import {
   buildGroupSpecialistsUrl,
   buildItemUrl,
 } from './itsmApi.js'
-import { buildItsmDevHeaders } from './itsmUpstream.js'
+import { itsmFetch } from './itsmFetch.js'
 
 type ItemPayload = Record<string, unknown>
 type AdditionalFieldPayload = Record<string, unknown>
@@ -180,9 +180,8 @@ function buildUpdatePayload(
 }
 
 export async function fetchItsmItem(itemId: string): Promise<ItemPayload> {
-  const response = await fetch(buildItemUrl(itemId), {
+  const response = await itsmFetch(buildItemUrl(itemId), {
     method: 'GET',
-    headers: buildItsmDevHeaders(''),
   })
 
   if (!response.ok) {
@@ -197,9 +196,8 @@ export async function fetchItsmItem(itemId: string): Promise<ItemPayload> {
 async function fetchItsmAdditionalFields(
   context: ItemAssignContext,
 ): Promise<AdditionalFieldPayload[]> {
-  const response = await fetch(buildAdditionalFieldsUrl(), {
+  const response = await itsmFetch(buildAdditionalFieldsUrl(), {
     method: 'POST',
-    headers: buildItsmDevHeaders(),
     body: JSON.stringify({
       asdkWeb: true,
       categoryId: context.categoryId,
@@ -228,9 +226,8 @@ export async function updateItsmItem(
   itemId: string,
   payload: ItemPayload,
 ): Promise<Response> {
-  return fetch(buildItemUrl(itemId), {
+  return itsmFetch(buildItemUrl(itemId), {
     method: 'PUT',
-    headers: buildItsmDevHeaders(),
     body: JSON.stringify(payload),
   })
 }
@@ -278,9 +275,8 @@ export async function fetchItsmGroups(
   serviceId: number,
   stateId: number,
 ): Promise<Response> {
-  return fetch(buildGroupListUrl(serviceId, stateId), {
+  return itsmFetch(buildGroupListUrl(serviceId, stateId), {
     method: 'GET',
-    headers: buildItsmDevHeaders(''),
   })
 }
 
@@ -288,8 +284,7 @@ export async function fetchItsmGroupSpecialists(
   groupId: number,
   projectId: number,
 ): Promise<Response> {
-  return fetch(buildGroupSpecialistsUrl(groupId, projectId), {
+  return itsmFetch(buildGroupSpecialistsUrl(groupId, projectId), {
     method: 'GET',
-    headers: buildItsmDevHeaders(''),
   })
 }

@@ -1,24 +1,16 @@
-function stripCookieValue(raw?: string): string | undefined {
-  if (!raw) return undefined
-  const cookie = raw.split(';')[0]?.trim()
-  if (!cookie) return undefined
-  return cookie.includes('=') ? cookie : `AuthCookieASMS=${cookie}`
-}
-
-/** Server-only: prefer non-VITE vars (Vercel). VITE_* is a local dev fallback. */
-export function getItsmAuthToken(): string | undefined {
+/** Bootstrap token used only to create ITSM session tokens. */
+export function getItsmIntegrationToken(): string | undefined {
   return (
+    process.env.ITSM_INTEGRATION_TOKEN ??
     process.env.ITSM_AUTH_TOKEN ??
+    process.env.VITE_ITSM_INTEGRATION_TOKEN ??
     process.env.VITE_ITSM_AUTH_TOKEN
   )?.trim()
 }
 
-/** Server-only: prefer non-VITE vars (Vercel). VITE_* is a local dev fallback. */
-export function getItsmAuthCookie(): string | undefined {
-  const raw =
-    process.env.ITSM_AUTH_COOKIE ?? process.env.VITE_ITSM_AUTH_COOKIE
-
-  return stripCookieValue(raw)
+/** @deprecated Session token is fetched dynamically. Use getItsmIntegrationToken(). */
+export function getItsmAuthToken(): string | undefined {
+  return getItsmIntegrationToken()
 }
 
 /** Default admin password for SNDVAI (assignment privileges). */
@@ -42,21 +34,28 @@ export function getAuthSessionSecret(): string {
   )
 }
 
+export function resolveItsmIntegrationTokenFromEnv(
+  env: Record<string, string>,
+): string | undefined {
+  return (
+    env.ITSM_INTEGRATION_TOKEN ??
+    env.ITSM_AUTH_TOKEN ??
+    env.VITE_ITSM_INTEGRATION_TOKEN ??
+    env.VITE_ITSM_AUTH_TOKEN
+  )?.trim()
+}
+
 export function resolveItsmAuthTokenFromEnv(
   env: Record<string, string>,
 ): string | undefined {
-  return (env.ITSM_AUTH_TOKEN ?? env.VITE_ITSM_AUTH_TOKEN)?.trim()
-}
-
-export function resolveItsmAuthCookieFromEnv(
-  env: Record<string, string>,
-): string | undefined {
-  return stripCookieValue(env.ITSM_AUTH_COOKIE ?? env.VITE_ITSM_AUTH_COOKIE)
+  return resolveItsmIntegrationTokenFromEnv(env)
 }
 
 export function formatItsmBearerToken(token: string): string {
   return token.startsWith('Bearer ') ? token : `Bearer ${token}`
 }
 
-export const ITSM_AUTH_TOKEN_ERROR =
-  'Configura ITSM_AUTH_TOKEN en Vercel (o VITE_ITSM_AUTH_TOKEN en local) y haz redeploy.'
+export const ITSM_BOOTSTRAP_ERROR =
+  'Configura ITSM_INTEGRATION_TOKEN para autenticar con ITSM.'
+
+export const ITSM_AUTH_TOKEN_ERROR = ITSM_BOOTSTRAP_ERROR

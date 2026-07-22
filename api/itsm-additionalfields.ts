@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   buildAdditionalFieldsUrl,
-  buildItsmHeaders,
   requireSessionFromAuthHeader,
 } from '../lib/itsmApi.js'
+import { itsmFetch } from '../lib/itsmFetch.js'
 
 export default async function handler(
   req: VercelRequest,
@@ -21,9 +21,8 @@ export default async function handler(
   }
 
   try {
-    const upstream = await fetch(buildAdditionalFieldsUrl(), {
+    const upstream = await itsmFetch(buildAdditionalFieldsUrl(), {
       method: 'POST',
-      headers: buildItsmHeaders(),
       body: JSON.stringify(req.body ?? {}),
     })
 

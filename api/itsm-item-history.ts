@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   buildItemHistoryUrl,
-  buildItsmHeaders,
   requireSessionFromAuthHeader,
 } from '../lib/itsmApi.js'
+import { itsmFetch } from '../lib/itsmFetch.js'
 
 export default async function handler(
   req: VercelRequest,
@@ -35,12 +35,9 @@ export default async function handler(
   }
 
   try {
-    const upstream = await fetch(
+    const upstream = await itsmFetch(
       buildItemHistoryUrl(itemId, { isClosed, modelId, statusId }),
-      {
-        method: 'GET',
-        headers: buildItsmHeaders(''),
-      },
+      { method: 'GET' },
     )
 
     const body = await upstream.text()

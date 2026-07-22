@@ -4,7 +4,7 @@ import {
   buildFileUrl,
   buildItemFilesUrl,
   buildItemHistoryUrl,
-  buildItsmDevHeaders,
+  buildItsmSearchUrl,
   requireSessionFromAuthHeader,
   requireAdminSessionFromAuthHeader,
 } from './itsmUpstream.js'
@@ -14,6 +14,7 @@ import {
   fetchItsmGroups,
   type ItemAssignContext,
 } from './assignResponsible.js'
+import { itsmFetch } from './itsmFetch.js'
 import { resolveFileContentType } from './itsmApi.js'
 
 function sendJson(
@@ -54,9 +55,8 @@ async function proxyJsonPost(
 
   try {
     const body = await readRequestBody(request)
-    const upstream = await fetch(targetUrl, {
+    const upstream = await itsmFetch(targetUrl, {
       method: 'POST',
-      headers: buildItsmDevHeaders(),
       body: body || '{}',
     })
 
@@ -86,9 +86,8 @@ async function proxyJsonGet(
   }
 
   try {
-    const upstream = await fetch(targetUrl, {
+    const upstream = await itsmFetch(targetUrl, {
       method: 'GET',
-      headers: buildItsmDevHeaders(''),
     })
 
     const body = await upstream.text()
@@ -118,9 +117,8 @@ async function proxyBinaryGet(
   }
 
   try {
-    const upstream = await fetch(targetUrl, {
+    const upstream = await itsmFetch(targetUrl, {
       method: 'GET',
-      headers: buildItsmDevHeaders(''),
     })
 
     const buffer = Buffer.from(await upstream.arrayBuffer())
@@ -146,6 +144,38 @@ async function proxyBinaryGet(
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Error al conectar con ITSM'
+    sendJson(response, 502, { error: message })
+  }
+}
+
+export async function handleItsmSearch(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  const user = await requireSessionFromAuthHeader(request.headers.authorization)
+  if (!user) {
+    sendJson(response, 401, { error: 'Sesión no válida o expirada' })
+    return
+  }
+
+  try {
+    const body = await readRequestBody(request)
+    const upstream = await itsmFetch(buildItsmSearchUrl(), {
+      method: 'POST',
+      body: body || '{}',
+    })
+
+    const responseBody = await upstream.text()
+    response.statusCode = upstream.status
+    response.setHeader(
+      'Content-Type',
+      upstream.headers.get('content-type') ?? 'application/json',
+    )
+    response.end(responseBody)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Error al conectar con ITSM'
+    console.error('[itsm-search]', message)
     sendJson(response, 502, { error: message })
   }
 }

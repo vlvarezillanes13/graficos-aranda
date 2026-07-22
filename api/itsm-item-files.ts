@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import {
   buildItemFilesUrl,
-  buildItsmHeaders,
   requireSessionFromAuthHeader,
 } from '../lib/itsmApi.js'
+import { itsmFetch } from '../lib/itsmFetch.js'
 
 export default async function handler(
   req: VercelRequest,
@@ -30,9 +30,8 @@ export default async function handler(
   }
 
   try {
-    const upstream = await fetch(buildItemFilesUrl(itemId, itemType), {
+    const upstream = await itsmFetch(buildItemFilesUrl(itemId, itemType), {
       method: 'GET',
-      headers: buildItsmHeaders(''),
     })
 
     const body = await upstream.text()
