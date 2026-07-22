@@ -3,9 +3,6 @@ import {
   verifySessionToken,
   type SessionInfo,
 } from './auth.js'
-import {
-  ITSM_BOOTSTRAP_ERROR,
-} from './env.js'
 import { getItsmSessionToken } from './itsmSessionToken.js'
 
 export {
