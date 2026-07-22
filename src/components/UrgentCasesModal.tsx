@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
 import { downloadUrgentCasesXlsx } from '../utils/exportXlsx'
 import {
@@ -7,7 +8,6 @@ import {
   getMissingUrgentIds,
   parseUrgentCaseIds,
 } from '../utils/urgentCases'
-import { useDeliveryDates } from '../hooks/useDeliveryDates'
 import { fetchDeliveryDatesForItems } from '../services/deliveryDatesService'
 import { ItemsTable } from './ItemsTable'
 
@@ -22,6 +22,8 @@ interface UrgentCasesModalProps {
   connectionError?: string
   updatedBy?: string | null
   updatedAt?: string | null
+  deliveryDatesById?: Map<number, ItemDeliveryDates>
+  deliveryDatesLoading?: boolean
   onClose: () => void
   onSelect: (item: IncidentItem) => void
 }
@@ -37,6 +39,8 @@ export function UrgentCasesModal({
   connectionError = '',
   updatedBy = null,
   updatedAt = null,
+  deliveryDatesById,
+  deliveryDatesLoading = false,
   onClose,
   onSelect,
 }: UrgentCasesModalProps) {
@@ -112,9 +116,6 @@ export function UrgentCasesModal({
     () => getMissingUrgentIds(items, urgentIds),
     [items, urgentIds],
   )
-
-  const { datesById: deliveryDatesById, loading: deliveryDatesLoading } =
-    useDeliveryDates(urgentItems)
 
   const handleDownloadXlsx = async () => {
     if (urgentItems.length === 0) return

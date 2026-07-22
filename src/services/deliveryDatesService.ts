@@ -35,7 +35,15 @@ function parseAdditionalFieldsResponse(payload: unknown): AdditionalField[] {
 }
 
 function normalizeFieldName(value: string): string {
-  return value.trim().toLowerCase()
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function isCompleteDeliveryDates(dates: ItemDeliveryDates): boolean {
+  return 'pendienteSuspendido' in dates
 }
 
 function parseDateValue(value: number | string | null | undefined): number | null {
@@ -126,7 +134,9 @@ function buildAdditionalFieldsBody(item: IncidentItem) {
 export function getCachedDeliveryDates(
   itemId: number,
 ): ItemDeliveryDates | undefined {
-  return cache.get(itemId)
+  const cached = cache.get(itemId)
+  if (!cached || !isCompleteDeliveryDates(cached)) return undefined
+  return cached
 }
 
 export function clearDeliveryDatesCache(): void {
@@ -160,7 +170,7 @@ export async function fetchItemDeliveryDates(
   item: IncidentItem,
 ): Promise<ItemDeliveryDates> {
   const cached = cache.get(item.id)
-  if (cached) return cached
+  if (cached && isCompleteDeliveryDates(cached)) return cached
 
   const pending = inflight.get(item.id)
   if (pending) return pending
@@ -179,12 +189,12 @@ async function fetchWithConcurrency(
 ): Promise<Map<number, ItemDeliveryDates>> {
   const result = new Map<number, ItemDeliveryDates>()
   const queue = items.filter(
-    (item) => !cache.has(item.id) && !inflight.has(item.id),
+    (item) => !getCachedDeliveryDates(item.id) && !inflight.has(item.id),
   )
 
   if (queue.length === 0) {
     for (const item of items) {
-      const cached = cache.get(item.id)
+      const cached = getCachedDeliveryDates(item.id)
       if (cached) result.set(item.id, cached)
     }
     return result
@@ -215,7 +225,7 @@ async function fetchWithConcurrency(
   await Promise.all(workers)
 
   for (const item of items) {
-    const cached = cache.get(item.id)
+    const cached = getCachedDeliveryDates(item.id)
     if (cached) result.set(item.id, cached)
   }
 

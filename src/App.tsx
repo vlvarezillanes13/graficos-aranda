@@ -187,10 +187,19 @@ function App() {
     [items, filters],
   )
 
+  const urgentItems = useMemo(
+    () => filterUrgentItems(items, urgentIds),
+    [items, urgentIds],
+  )
+
   const itemsForDeliveryDates = useMemo(() => {
     const byId = new Map<number, IncidentItem>()
 
     for (const item of filteredItems) {
+      byId.set(item.id, item)
+    }
+
+    for (const item of urgentItems) {
       byId.set(item.id, item)
     }
 
@@ -199,7 +208,7 @@ function App() {
     }
 
     return Array.from(byId.values())
-  }, [filteredItems, selectedItem])
+  }, [filteredItems, urgentItems, selectedItem])
 
   const { datesById: deliveryDatesById, loading: deliveryDatesLoading } =
     useDeliveryDates(itemsForDeliveryDates)
@@ -246,10 +255,7 @@ function App() {
   }, [items, fetchedAt])
 
   const exportCounts = useMemo(() => getExportCounts(items), [items])
-  const urgentCount = useMemo(
-    () => filterUrgentItems(items, urgentIds).length,
-    [items, urgentIds],
-  )
+  const urgentCount = urgentItems.length
 
   const handleUrgentIdsChange = useCallback(
     async (ids: string[]) => {
@@ -525,6 +531,8 @@ function App() {
         connectionError={urgentConnectionError}
         updatedBy={urgentUpdatedBy}
         updatedAt={urgentUpdatedAt}
+        deliveryDatesById={deliveryDatesById}
+        deliveryDatesLoading={deliveryDatesLoading}
         onClose={() => setUrgentModalOpen(false)}
         onSelect={setSelectedItem}
       />
