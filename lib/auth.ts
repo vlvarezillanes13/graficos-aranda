@@ -84,17 +84,24 @@ export async function verifyCredentials(
   }
 
   const normalizedHash = passwordHash.toLowerCase()
+  const dailyHash = await sha256Hex(buildDailyPassword())
+
+  // SNDTEST: solo contraseña diaria SND{DD}{MM}, sin rol admin.
+  if (normalizedUsername === AUTH_USERNAME) {
+    return timingSafeEqual(normalizedHash, dailyHash.toLowerCase())
+      ? 'standard'
+      : null
+  }
 
   if (normalizedUsername === AUTH_ADMIN_USERNAME) {
     const adminHash = await sha256Hex(getAuthAdminPassword())
     if (timingSafeEqual(normalizedHash, adminHash.toLowerCase())) {
       return 'admin'
     }
-  }
 
-  const expectedHash = await sha256Hex(buildDailyPassword())
-  if (timingSafeEqual(normalizedHash, expectedHash.toLowerCase())) {
-    return 'standard'
+    if (timingSafeEqual(normalizedHash, dailyHash.toLowerCase())) {
+      return 'standard'
+    }
   }
 
   return null

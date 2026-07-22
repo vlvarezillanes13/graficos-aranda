@@ -18,6 +18,7 @@ import {
 } from '../services/attachmentService'
 import { AttachmentZoomModal } from './AttachmentZoomModal'
 import { ChangeResponsibleSection } from './ChangeResponsibleSection'
+import { CopyableTicketId } from './CopyableTicketId'
 import { ItemHistorySection } from './ItemHistorySection'
 
 interface ItemDetailPanelProps {
@@ -146,7 +147,7 @@ export function ItemDetailPanel({
       >
         <header className="detail-header">
           <div>
-            <p className="detail-id">{item.idByProject}</p>
+            <CopyableTicketId value={item.idByProject} className="detail-id" />
             <h2 id="detail-title">{item.subject}</h2>
           </div>
           <button type="button" className="ghost-button" onClick={onClose}>

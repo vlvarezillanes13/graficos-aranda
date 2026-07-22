@@ -76,6 +76,22 @@ function stripHtml(value: string): string {
     .trim()
 }
 
+export function getHistoryCommentText(entry: HistoryEntry): string {
+  if (entry.descriptionNoHtml?.trim()) {
+    return entry.descriptionNoHtml.trim()
+  }
+
+  if (entry.description?.trim()) {
+    return stripHtml(entry.description)
+  }
+
+  return ''
+}
+
+export function shouldOfferFullHistoryComment(text: string): boolean {
+  return text.length > 220
+}
+
 export function getAttachmentFileName(entry: HistoryEntry): string {
   if (entry.descriptionNoHtml?.trim()) {
     return entry.descriptionNoHtml.trim()
@@ -102,7 +118,8 @@ export function getHistorySummary(entry: HistoryEntry): string {
   const kind = getHistoryActionKind(entry)
 
   if (kind === 'note') {
-    return entry.descriptionNoHtml?.trim() ?? 'Nota sin contenido'
+    const text = getHistoryCommentText(entry)
+    return text || 'Nota sin contenido'
   }
 
   if (kind === 'attachment') {

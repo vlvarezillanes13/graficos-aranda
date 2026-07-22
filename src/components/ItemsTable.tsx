@@ -12,6 +12,7 @@ import {
   getTestAprobadoTimestamp,
   getUltimaIteracionTimestamp,
 } from '../utils/deliveryDates'
+import { CopyableTicketId } from './CopyableTicketId'
 
 interface ItemsTableProps {
   items: IncidentItem[]
@@ -195,7 +196,9 @@ export function ItemsTable({
                   className="clickable-row"
                   onClick={() => onSelect?.(item)}
                 >
-                  <td className="mono">{item.idByProject}</td>
+                  <td className="mono ticket-id-cell">
+                    <CopyableTicketId value={item.idByProject} />
+                  </td>
                   <td className="subject-cell">{item.subject}</td>
                   <td>
                     <span className="pill">{item.itemTypeName}</span>

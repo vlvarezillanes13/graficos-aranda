@@ -8,9 +8,12 @@ import {
   getAttachmentFileName,
   getHistoryActionKind,
   getHistoryActionLabel,
+  getHistoryCommentText,
   getHistorySummary,
+  shouldOfferFullHistoryComment,
   sortHistoryEntries,
 } from '../utils/itemHistory'
+import { HistoryCommentModal } from './HistoryCommentModal'
 
 interface ItemHistorySectionProps {
   item: IncidentItem
@@ -29,11 +32,64 @@ function ActionIcon({ kind }: { kind: ReturnType<typeof getHistoryActionKind> })
   return <span className="history-icon">{icons[kind]}</span>
 }
 
-function HistoryEntryCard({ entry }: { entry: HistoryEntry }) {
+function HistoryNoteContent({
+  entry,
+  onOpenFull,
+}: {
+  entry: HistoryEntry
+  onOpenFull: (entry: HistoryEntry, text: string) => void
+}) {
+  const commentText = getHistoryCommentText(entry)
+  if (!commentText) return null
+
+  const showOpenButton = shouldOfferFullHistoryComment(commentText)
+
+  return (
+    <div className="history-note-content">
+      <div
+        className={`history-note-box ${showOpenButton ? 'history-note-preview is-expandable' : ''}`}
+        onClick={showOpenButton ? () => onOpenFull(entry, commentText) : undefined}
+        onKeyDown={
+          showOpenButton
+            ? (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onOpenFull(entry, commentText)
+                }
+              }
+            : undefined
+        }
+        role={showOpenButton ? 'button' : undefined}
+        tabIndex={showOpenButton ? 0 : undefined}
+      >
+        {commentText}
+      </div>
+      {showOpenButton && (
+        <button
+          type="button"
+          className="history-open-comment-button"
+          onClick={() => onOpenFull(entry, commentText)}
+        >
+          Ver comentario completo
+        </button>
+      )}
+    </div>
+  )
+}
+
+function HistoryEntryCard({
+  entry,
+  onOpenComment,
+}: {
+  entry: HistoryEntry
+  onOpenComment: (entry: HistoryEntry, text: string) => void
+}) {
   const [expanded, setExpanded] = useState(true)
   const kind = getHistoryActionKind(entry)
   const label = getHistoryActionLabel(entry)
   const summary = getHistorySummary(entry)
+  const commentText = getHistoryCommentText(entry)
+  const showNoteContent = kind === 'note' || (kind === 'other' && commentText)
 
   return (
     <article className="history-entry">
@@ -56,10 +112,10 @@ function HistoryEntryCard({ entry }: { entry: HistoryEntry }) {
 
       {expanded && (
         <div className="history-entry-body">
-          <p className="history-summary">{summary}</p>
+          {!showNoteContent && <p className="history-summary">{summary}</p>}
 
-          {kind === 'note' && entry.descriptionNoHtml?.trim() && (
-            <div className="history-note-box">{entry.descriptionNoHtml.trim()}</div>
+          {showNoteContent && (
+            <HistoryNoteContent entry={entry} onOpenFull={onOpenComment} />
           )}
 
           {kind === 'attachment' && (
@@ -88,10 +144,6 @@ function HistoryEntryCard({ entry }: { entry: HistoryEntry }) {
               </table>
             </div>
           )}
-
-          {kind === 'other' && entry.descriptionNoHtml?.trim() && (
-            <div className="history-note-box">{entry.descriptionNoHtml.trim()}</div>
-          )}
         </div>
       )}
     </article>
@@ -103,11 +155,16 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadedForItemId, setLoadedForItemId] = useState<number | null>(null)
+  const [openComment, setOpenComment] = useState<{
+    title: string
+    text: string
+  } | null>(null)
 
   useEffect(() => {
     setHistory([])
     setError(null)
     setLoadedForItemId(null)
+    setOpenComment(null)
   }, [item.id])
 
   useEffect(() => {
@@ -142,6 +199,13 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
     }
   }, [item, active, loadedForItemId])
 
+  const handleOpenComment = (entry: HistoryEntry, text: string) => {
+    setOpenComment({
+      title: `${entry.authorName} · ${getHistoryActionLabel(entry)}`,
+      text,
+    })
+  }
+
   return (
     <section className="detail-history">
       {loading && <p className="detail-history-muted">Cargando historial...</p>}
@@ -158,10 +222,22 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
           </p>
           <div className="history-timeline">
             {history.map((entry) => (
-              <HistoryEntryCard key={entry.id} entry={entry} />
+              <HistoryEntryCard
+                key={entry.id}
+                entry={entry}
+                onOpenComment={handleOpenComment}
+              />
             ))}
           </div>
         </>
+      )}
+
+      {openComment && (
+        <HistoryCommentModal
+          title={openComment.title}
+          text={openComment.text}
+          onClose={() => setOpenComment(null)}
+        />
       )}
     </section>
   )

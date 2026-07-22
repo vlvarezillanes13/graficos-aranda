@@ -102,7 +102,7 @@ export function buildItemHistoryUrl(
     consoleType: String(historyParams.consoleType ?? 1),
     modelId: String(historyParams.modelId),
     statusId: String(historyParams.statusId),
-    limitDescription: String(historyParams.limitDescription ?? true),
+    limitDescription: String(historyParams.limitDescription ?? false),
   })
 
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/${itemId}/history/list?${params}`
