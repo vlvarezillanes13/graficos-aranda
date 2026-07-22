@@ -7,10 +7,12 @@ import {
   formatDeliveryTestDate,
   formatTestAprobadoDate,
   formatUltimaIteracionDate,
+  formatPendienteSuspendidoDate,
   getDeliveryDateTimestamp,
   getDeliveryTestTimestamp,
   getTestAprobadoTimestamp,
   getUltimaIteracionTimestamp,
+  getPendienteSuspendidoTimestamp,
 } from '../utils/deliveryDates'
 import { CopyableTicketId } from './CopyableTicketId'
 
@@ -29,6 +31,7 @@ type SortKey =
   | 'deliveryTestDate'
   | 'ultimaIteracion'
   | 'testAprobado'
+  | 'pendienteSuspendido'
   | 'stateName'
   | 'priorityName'
 
@@ -53,6 +56,10 @@ function getSortValue(
 
   if (key === 'testAprobado') {
     return getTestAprobadoTimestamp(item, deliveryDatesById) ?? 0
+  }
+
+  if (key === 'pendienteSuspendido') {
+    return getPendienteSuspendidoTimestamp(item, deliveryDatesById) ?? 0
   }
 
   return item[key]
@@ -180,12 +187,20 @@ export function ItemsTable({
                   Fecha Test Aprobado{sortIndicator('testAprobado')}
                 </button>
               </th>
+              <th>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('pendienteSuspendido')}
+                >
+                  Fecha Pendiente Suspendido{sortIndicator('pendienteSuspendido')}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={12} className="empty-row">
+                <td colSpan={13} className="empty-row">
                   {emptyMessage}
                 </td>
               </tr>
@@ -218,6 +233,7 @@ export function ItemsTable({
                   <td>{formatDeliveryTestDate(item, deliveryDatesById)}</td>
                   <td>{formatUltimaIteracionDate(item, deliveryDatesById)}</td>
                   <td>{formatTestAprobadoDate(item, deliveryDatesById)}</td>
+                  <td>{formatPendienteSuspendidoDate(item, deliveryDatesById)}</td>
                 </tr>
               ))
             )}

@@ -30,6 +30,13 @@ export function formatTestAprobadoDate(
   return formatDate(datesById?.get(item.id)?.testAprobado ?? null)
 }
 
+export function formatPendienteSuspendidoDate(
+  item: IncidentItem,
+  datesById?: Map<number, ItemDeliveryDates>,
+): string {
+  return formatDate(datesById?.get(item.id)?.pendienteSuspendido ?? null)
+}
+
 export function getDeliveryDateTimestamp(
   item: IncidentItem,
   datesById?: Map<number, ItemDeliveryDates>,
@@ -56,4 +63,11 @@ export function getTestAprobadoTimestamp(
   datesById?: Map<number, ItemDeliveryDates>,
 ): number | null {
   return datesById?.get(item.id)?.testAprobado ?? null
+}
+
+export function getPendienteSuspendidoTimestamp(
+  item: IncidentItem,
+  datesById?: Map<number, ItemDeliveryDates>,
+): number | null {
+  return datesById?.get(item.id)?.pendienteSuspendido ?? null
 }

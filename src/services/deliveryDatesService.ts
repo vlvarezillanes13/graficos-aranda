@@ -12,6 +12,7 @@ const ULTIMA_ITERACION_FIELD_NAMES = new Set([
   'fecha ultima iteracion',
 ])
 const TEST_APROBADO_FIELD_NAMES = new Set(['fecha test aprobado'])
+const PENDIENTE_SUSPENDIDO_FIELD_NAMES = new Set(['fecha pendiente afp'])
 const FETCH_CONCURRENCY = 6
 
 const cache = new Map<number, ItemDeliveryDates>()
@@ -58,6 +59,7 @@ export function extractDeliveryDatesFromFields(
   let deliveryTestDate: number | null = null
   let ultimaIteracion: number | null = null
   let testAprobado: number | null = null
+  let pendienteSuspendido: number | null = null
 
   for (const field of fields) {
     const label = normalizeFieldName(field.name || field.identifier || '')
@@ -81,10 +83,21 @@ export function extractDeliveryDatesFromFields(
 
     if (TEST_APROBADO_FIELD_NAMES.has(label)) {
       testAprobado = timestamp
+      continue
+    }
+
+    if (PENDIENTE_SUSPENDIDO_FIELD_NAMES.has(label)) {
+      pendienteSuspendido = timestamp
     }
   }
 
-  return { deliveryDate, deliveryTestDate, ultimaIteracion, testAprobado }
+  return {
+    deliveryDate,
+    deliveryTestDate,
+    ultimaIteracion,
+    testAprobado,
+    pendienteSuspendido,
+  }
 }
 
 export function createEmptyDeliveryDates(): ItemDeliveryDates {
@@ -93,6 +106,7 @@ export function createEmptyDeliveryDates(): ItemDeliveryDates {
     deliveryTestDate: null,
     ultimaIteracion: null,
     testAprobado: null,
+    pendienteSuspendido: null,
   }
 }
 

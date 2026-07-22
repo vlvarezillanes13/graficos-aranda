@@ -6,6 +6,7 @@ import {
   formatDeliveryTestDate,
   formatTestAprobadoDate,
   formatUltimaIteracionDate,
+  formatPendienteSuspendidoDate,
 } from './deliveryDates'
 
 type ExportRow = Record<string, string>
@@ -31,6 +32,10 @@ function itemToExportRow(
     'FECHA ENTREGA TEST': formatDeliveryTestDate(item, deliveryDatesById),
     'FECHA GESTIÓN AFC': formatUltimaIteracionDate(item, deliveryDatesById),
     'FECHA TEST APROBADO': formatTestAprobadoDate(item, deliveryDatesById),
+    'FECHA PENDIENTE SUSPENDIDO': formatPendienteSuspendidoDate(
+      item,
+      deliveryDatesById,
+    ),
   }
 }
 

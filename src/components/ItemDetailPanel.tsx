@@ -8,6 +8,7 @@ import {
   formatDeliveryTestDate,
   formatTestAprobadoDate,
   formatUltimaIteracionDate,
+  formatPendienteSuspendidoDate,
 } from '../utils/deliveryDates'
 import {
   fetchFileBlob,
@@ -281,6 +282,10 @@ export function ItemDetailPanel({
           <div>
             <dt>Fecha Test Aprobado</dt>
             <dd>{formatTestAprobadoDate(item, deliveryDatesById)}</dd>
+          </div>
+          <div>
+            <dt>Fecha Pendiente Suspendido</dt>
+            <dd>{formatPendienteSuspendidoDate(item, deliveryDatesById)}</dd>
           </div>
           <div>
             <dt>Modificación</dt>
