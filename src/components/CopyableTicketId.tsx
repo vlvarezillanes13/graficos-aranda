@@ -36,6 +36,12 @@ export function CopyableTicketId({ value, className = '' }: CopyableTicketIdProp
     })
   }
 
+  const copyId = async () => {
+    const success = await copyText(value)
+    if (!success) return
+    triggerPressEffect()
+  }
+
   const handleMouseUp = (event: React.MouseEvent<HTMLSpanElement>) => {
     event.stopPropagation()
 
@@ -54,14 +60,18 @@ export function CopyableTicketId({ value, className = '' }: CopyableTicketIdProp
       return
     }
 
-    void copyText(value).then((success) => {
-      if (!success) return
-      triggerPressEffect()
-    })
+    void copyId()
   }
 
   const handleClick = (event: React.MouseEvent<HTMLSpanElement>) => {
     event.stopPropagation()
+
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed && selection.toString().trim()) {
+      return
+    }
+
+    void copyId()
   }
 
   return (
@@ -70,8 +80,18 @@ export function CopyableTicketId({ value, className = '' }: CopyableTicketIdProp
       className={`copyable-ticket-id ${pressing ? 'is-pressing' : ''} ${className}`.trim()}
       onMouseUp={handleMouseUp}
       onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      aria-label={`Copiar ID ${value}`}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          event.stopPropagation()
+          void copyId()
+        }
+      }}
     >
-      {value}
+      <span className="copyable-ticket-id-text">{value}</span>
     </span>
   )
 }
