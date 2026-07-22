@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import {
-  getItsmSharedCredentialsMeta,
-  setItsmSharedCredentials,
-} from './itsmSharedCredentials.js'
 import { requireSessionFromAuthHeader } from './itsmApi.js'
+import {
+  getUrgentCasesState,
+  updateUrgentCasesState,
+} from './urgentCasesStore.js'
 
 function sendJson(
   response: ServerResponse,
@@ -26,12 +26,12 @@ async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
   return raw ? (JSON.parse(raw) as T) : ({} as T)
 }
 
-interface CredentialsBody {
-  token?: string
-  cookie?: string
+interface UrgentCasesBody {
+  urgentIds?: string[]
+  usuario?: string
 }
 
-export async function handleItsmCredentialsGet(
+export async function handleUrgentCasesGet(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
@@ -41,10 +41,10 @@ export async function handleItsmCredentialsGet(
     return
   }
 
-  sendJson(response, 200, await getItsmSharedCredentialsMeta())
+  sendJson(response, 200, await getUrgentCasesState())
 }
 
-export async function handleItsmCredentialsPost(
+export async function handleUrgentCasesPost(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
@@ -55,19 +55,15 @@ export async function handleItsmCredentialsPost(
   }
 
   try {
-    const body = await readJsonBody<CredentialsBody>(request)
-    const token = body.token?.trim() ?? ''
-
-    if (!token) {
-      sendJson(response, 400, { error: 'token es obligatorio' })
-      return
-    }
-
-    await setItsmSharedCredentials(token, body.cookie, user.username)
-    sendJson(response, 200, await getItsmSharedCredentialsMeta())
+    const body = await readJsonBody<UrgentCasesBody>(request)
+    const state = await updateUrgentCasesState(
+      body.urgentIds ?? [],
+      body.usuario ?? user.username,
+    )
+    sendJson(response, 200, state)
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'No se pudo guardar el token ITSM'
+      error instanceof Error ? error.message : 'No se pudo actualizar urgentes'
     sendJson(response, 400, { error: message })
   }
 }

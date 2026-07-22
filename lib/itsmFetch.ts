@@ -15,7 +15,7 @@ export async function itsmFetch(
 ): Promise<Response> {
   const contentType = resolveContentType(init)
   const headers = {
-    ...buildItsmHeaders(contentType),
+    ...(await buildItsmHeaders(contentType)),
     ...((init.headers as Record<string, string> | undefined) ?? {}),
   }
 
@@ -25,7 +25,7 @@ export async function itsmFetch(
   })
 
   if (response.status === 401) {
-    clearItsmSharedCredentials()
+    await clearItsmSharedCredentials()
   }
 
   return response

@@ -65,7 +65,7 @@ export default async function handler(
     return
   }
 
-  if (!guardItsmCredentials(res)) return
+  if (!(await guardItsmCredentials(res))) return
 
   try {
     await assignItemResponsible(

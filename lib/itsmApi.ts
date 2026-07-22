@@ -12,10 +12,10 @@ import { ItsmCredentialsMissingError } from './itsmCredentialsResponse.js'
 export const ITSM_ORIGIN = 'https://itsm.sonda.com'
 export const ITSM_REFERER = `${ITSM_ORIGIN}/asmsspecialist/index.html`
 
-export function buildItsmHeaders(
+export async function buildItsmHeaders(
   contentType = 'application/json',
-): Record<string, string> {
-  const token = getItsmSharedToken()
+): Promise<Record<string, string>> {
+  const token = await getItsmSharedToken()
   if (!token) {
     throw new ItsmCredentialsMissingError()
   }
@@ -31,7 +31,7 @@ export function buildItsmHeaders(
     headers['Content-Type'] = contentType
   }
 
-  const cookie = getItsmSharedCookie()
+  const cookie = await getItsmSharedCookie()
   if (cookie) {
     headers.Cookie = cookie
   }

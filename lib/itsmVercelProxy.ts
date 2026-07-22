@@ -11,7 +11,7 @@ export async function finishItsmTextProxy(
   upstream: Response,
 ): Promise<void> {
   const body = await upstream.text()
-  const mapped = mapUpstreamItsmResponse(upstream.status, body)
+  const mapped = await mapUpstreamItsmResponse(upstream.status, body)
   if (mapped.handled) {
     res.status(mapped.status).json(mapped.payload)
     return
@@ -29,8 +29,8 @@ export function sendItsmCredentialsMissing(res: VercelResponse): void {
   res.status(401).json(itsmTokenMissingPayload())
 }
 
-export function guardItsmCredentials(res: VercelResponse): boolean {
-  const credentials = assertItsmCredentialsConfigured()
+export async function guardItsmCredentials(res: VercelResponse): Promise<boolean> {
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     res.status(401).json(credentials.payload)
     return false

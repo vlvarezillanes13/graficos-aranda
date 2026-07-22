@@ -72,7 +72,7 @@ async function proxyJsonPost(
     return
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     sendJson(response, 401, credentials.payload)
     return
@@ -86,7 +86,7 @@ async function proxyJsonPost(
     })
 
     const responseBody = await upstream.text()
-    const mapped = mapUpstreamItsmResponse(upstream.status, responseBody)
+    const mapped = await mapUpstreamItsmResponse(upstream.status, responseBody)
     if (mapped.handled) {
       sendJson(response, mapped.status, mapped.payload)
       return
@@ -121,7 +121,7 @@ async function proxyJsonGet(
     return
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     sendJson(response, 401, credentials.payload)
     return
@@ -133,7 +133,7 @@ async function proxyJsonGet(
     })
 
     const body = await upstream.text()
-    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    const mapped = await mapUpstreamItsmResponse(upstream.status, body)
     if (mapped.handled) {
       sendJson(response, mapped.status, mapped.payload)
       return
@@ -169,7 +169,7 @@ async function proxyBinaryGet(
     return
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     sendJson(response, 401, credentials.payload)
     return
@@ -182,7 +182,7 @@ async function proxyBinaryGet(
 
     if (upstream.status === 401) {
       const body = await upstream.text()
-      const mapped = mapUpstreamItsmResponse(401, body)
+      const mapped = await mapUpstreamItsmResponse(401, body)
       sendJson(response, mapped.status, mapped.payload)
       return
     }
@@ -311,7 +311,7 @@ export async function handleItsmGroups(
     return
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     sendJson(response, 401, credentials.payload)
     return
@@ -320,7 +320,7 @@ export async function handleItsmGroups(
   try {
     const upstream = await fetchItsmGroups(serviceId, stateId)
     const body = await upstream.text()
-    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    const mapped = await mapUpstreamItsmResponse(upstream.status, body)
     if (mapped.handled) {
       sendJson(response, mapped.status, mapped.payload)
       return
@@ -367,7 +367,7 @@ export async function handleItsmGroupSpecialists(
     return
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     sendJson(response, 401, credentials.payload)
     return
@@ -376,7 +376,7 @@ export async function handleItsmGroupSpecialists(
   try {
     const upstream = await fetchItsmGroupSpecialists(groupId, projectId)
     const body = await upstream.text()
-    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    const mapped = await mapUpstreamItsmResponse(upstream.status, body)
     if (mapped.handled) {
       sendJson(response, mapped.status, mapped.payload)
       return
@@ -446,7 +446,7 @@ export async function handleItsmAssignResponsible(
     return
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     sendJson(response, 401, credentials.payload)
     return

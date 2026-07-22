@@ -129,10 +129,10 @@ export function UrgentCasesModal({
   }
 
   const connectionLabel = !realtimeEnabled
-    ? 'Solo local (sin servidor realtime)'
+    ? 'Solo local'
     : connected
-      ? 'Sincronizado en tiempo real'
-      : 'Desconectado'
+      ? 'Sincronizado (API compartida)'
+      : 'Sin conexión con el servidor'
 
   if (!open) return null
 

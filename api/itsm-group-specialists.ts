@@ -24,7 +24,7 @@ export default async function handler(
     return
   }
 
-  if (!guardItsmCredentials(res)) return
+  if (!(await guardItsmCredentials(res))) return
 
   const groupId =
     typeof req.query.groupId === 'string' ? Number(req.query.groupId) : NaN

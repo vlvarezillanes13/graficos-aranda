@@ -1,4 +1,7 @@
-import { clearItsmSharedCredentials, hasItsmSharedCredentials } from './itsmSharedCredentials.js'
+import {
+  clearItsmSharedCredentials,
+  hasItsmSharedCredentials,
+} from './itsmSharedCredentials.js'
 
 export const ITSM_TOKEN_REQUIRED = 'ITSM_TOKEN_REQUIRED'
 
@@ -28,24 +31,27 @@ export class ItsmCredentialsMissingError extends Error {
   }
 }
 
-export function assertItsmCredentialsConfigured():
-  | { ok: true }
-  | { ok: false; payload: ReturnType<typeof itsmTokenMissingPayload> } {
-  if (hasItsmSharedCredentials()) {
+export async function assertItsmCredentialsConfigured():
+  Promise<
+    | { ok: true }
+    | { ok: false; payload: ReturnType<typeof itsmTokenMissingPayload> }
+  > {
+  if (await hasItsmSharedCredentials()) {
     return { ok: true }
   }
 
   return { ok: false, payload: itsmTokenMissingPayload() }
 }
 
-export function mapUpstreamItsmResponse(
+export async function mapUpstreamItsmResponse(
   status: number,
   body: string,
-):
+): Promise<
   | { handled: true; status: 401; payload: ReturnType<typeof itsmTokenRequiredPayload> }
-  | { handled: false; status: number; body: string } {
+  | { handled: false; status: number; body: string }
+> {
   if (status === 401) {
-    clearItsmSharedCredentials()
+    await clearItsmSharedCredentials()
     return {
       handled: true,
       status: 401,

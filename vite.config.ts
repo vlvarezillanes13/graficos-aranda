@@ -16,6 +16,10 @@ import {
   handleItsmSearch,
   isProtectedItsmApi,
 } from './lib/itsmDevHandlers.js'
+import {
+  handleUrgentCasesGet,
+  handleUrgentCasesPost,
+} from './lib/urgentCasesHandlers.js'
 import { configureDevServerEnv } from './lib/itsmUpstream.js'
 
 function createAuthMiddleware() {
@@ -100,6 +104,20 @@ function createAuthMiddleware() {
     if (pathname === '/api/itsm-assign-responsible' && req.method === 'POST') {
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) void handleItsmAssignResponsible(req, res)
+      })
+      return
+    }
+
+    if (pathname === '/api/urgent-cases' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleUrgentCasesGet(req, res)
+      })
+      return
+    }
+
+    if (pathname === '/api/urgent-cases' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleUrgentCasesPost(req, res)
       })
       return
     }

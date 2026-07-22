@@ -27,7 +27,7 @@ export default async function handler(
     return
   }
 
-  if (!guardItsmCredentials(res)) return
+  if (!(await guardItsmCredentials(res))) return
 
   const fileId = typeof req.query.id === 'string' ? req.query.id : undefined
   const fileName =
@@ -45,7 +45,7 @@ export default async function handler(
 
     if (upstream.status === 401) {
       const body = await upstream.text()
-      clearItsmSharedCredentials()
+      await clearItsmSharedCredentials()
       res.status(401).json(itsmTokenRequiredPayload(body))
       return
     }

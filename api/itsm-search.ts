@@ -22,7 +22,7 @@ export default async function handler(request: Request): Promise<Response> {
     return Response.json({ error: 'Sesión no válida o expirada' }, { status: 401 })
   }
 
-  const credentials = assertItsmCredentialsConfigured()
+  const credentials = await assertItsmCredentialsConfigured()
   if (!credentials.ok) {
     return Response.json(credentials.payload, { status: 401 })
   }
@@ -34,7 +34,7 @@ export default async function handler(request: Request): Promise<Response> {
     })
 
     const body = await upstream.text()
-    const mapped = mapUpstreamItsmResponse(upstream.status, body)
+    const mapped = await mapUpstreamItsmResponse(upstream.status, body)
     if (mapped.handled) {
       return Response.json(mapped.payload, { status: mapped.status })
     }

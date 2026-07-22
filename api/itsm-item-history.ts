@@ -25,7 +25,7 @@ export default async function handler(
     return
   }
 
-  if (!guardItsmCredentials(res)) return
+  if (!(await guardItsmCredentials(res))) return
 
   const itemId = typeof req.query.itemId === 'string' ? req.query.itemId : undefined
   const isClosed = req.query.isClosed === 'true'

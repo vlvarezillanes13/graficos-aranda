@@ -16,7 +16,7 @@ export default async function handler(
   }
 
   if (req.method === 'GET') {
-    res.status(200).json(getItsmSharedCredentialsMeta())
+    res.status(200).json(await getItsmSharedCredentialsMeta())
     return
   }
 
@@ -35,8 +35,8 @@ export default async function handler(
       return
     }
 
-    setItsmSharedCredentials(token, cookie, user.username)
-    res.status(200).json(getItsmSharedCredentialsMeta())
+    await setItsmSharedCredentials(token, cookie, user.username)
+    res.status(200).json(await getItsmSharedCredentialsMeta())
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'No se pudo guardar el token ITSM'

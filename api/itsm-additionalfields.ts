@@ -25,7 +25,7 @@ export default async function handler(
     return
   }
 
-  if (!guardItsmCredentials(res)) return
+  if (!(await guardItsmCredentials(res))) return
 
   try {
     const upstream = await itsmFetch(buildAdditionalFieldsUrl(), {
