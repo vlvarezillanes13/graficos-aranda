@@ -43,7 +43,7 @@ interface DashboardPageProps {
   responsibleStateMatrix: ReturnType<
     typeof import('../utils/aggregations').buildResponsibleByStateMatrix
   >
-  matrixSelection: MatrixSelection
+  matrixSelection: MatrixSelection | null
   deliveryDatesById: Map<number, ItemDeliveryDates>
   deliveryDatesLoading: boolean
   onFiltersChange: (filters: FilterState) => void
