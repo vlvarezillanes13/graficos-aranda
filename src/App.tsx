@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarCountChart, PieCountChart } from './components/CountChart'
-import { CollapsibleSection } from './components/CollapsibleSection'
-import { FilterBar } from './components/FilterBar'
+import { AppNav } from './components/AppNav'
 import { ItemDetailPanel } from './components/ItemDetailPanel'
-import { ItemsTable } from './components/ItemsTable'
 import { LoadingState } from './components/LoadingState'
 import { LoginPage } from './components/LoginPage'
-import { ResponsibleStateMatrixTable } from './components/ResponsibleStateMatrix'
-import { SummaryCards } from './components/SummaryCards'
 import { UrgentCasesModal } from './components/UrgentCasesModal'
 import { ItsmTokenModal } from './components/ItsmTokenModal'
+import { DashboardPage } from './pages/DashboardPage'
+import { ReportingPage } from './pages/ReportingPage'
 import {
   getSessionUsername,
   getSessionIsAdmin,
@@ -37,26 +34,14 @@ import {
   type FilterState,
   type MatrixSelection,
 } from './utils/aggregations'
-import { downloadIncidentsXlsx, getExportCounts } from './utils/exportXlsx'
 import { filterUrgentItems } from './utils/urgentCases'
+import { useAppRoute } from './hooks/useAppRoute'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
 import { useBackgroundRefresh } from './hooks/useBackgroundRefresh'
 import { useDeliveryDates } from './hooks/useDeliveryDates'
 import { useSharedUrgentCases } from './hooks/useSharedUrgentCases'
-import {
-  clearDeliveryDatesCache,
-  fetchDeliveryDatesForItems,
-} from './services/deliveryDatesService'
+import { clearDeliveryDatesCache } from './services/deliveryDatesService'
 import './App.css'
-
-const GROUP_OPTIONS: { value: GroupField; label: string }[] = [
-  { value: 'responsibleName', label: 'Responsable' },
-  { value: 'groupName', label: 'Grupo' },
-  { value: 'itemTypeName', label: 'Tipo de ítem' },
-  { value: 'stateName', label: 'Estado' },
-  { value: 'priorityName', label: 'Prioridad' },
-  { value: 'categoryName', label: 'Categoría' },
-]
 
 const DEFAULT_FILTERS: FilterState = {
   search: '',
@@ -68,6 +53,7 @@ const DEFAULT_FILTERS: FilterState = {
 }
 
 function App() {
+  const { route, navigate } = useAppRoute()
   const [authReady, setAuthReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [items, setItems] = useState<IncidentItem[]>([])
@@ -80,7 +66,6 @@ function App() {
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
   const [selectedItem, setSelectedItem] = useState<IncidentItem | null>(null)
   const [urgentModalOpen, setUrgentModalOpen] = useState(false)
-  const [exporting, setExporting] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [itsmTokenModalOpen, setItsmTokenModalOpen] = useState(false)
   const [itsmTokenMessage, setItsmTokenMessage] = useState<string | null>(null)
@@ -238,23 +223,6 @@ function App() {
     [filteredItems],
   )
 
-  const customLabel =
-    GROUP_OPTIONS.find((option) => option.value === customField)?.label ??
-    customField
-
-  const handleExportXlsx = useCallback(async () => {
-    if (items.length === 0) return
-
-    setExporting(true)
-    try {
-      const dates = await fetchDeliveryDatesForItems(items)
-      downloadIncidentsXlsx(items, fetchedAt, dates)
-    } finally {
-      setExporting(false)
-    }
-  }, [items, fetchedAt])
-
-  const exportCounts = useMemo(() => getExportCounts(items), [items])
   const urgentCount = urgentItems.length
 
   const handleUrgentIdsChange = useCallback(
@@ -271,17 +239,6 @@ function App() {
         return clearMatrixSelectionFromFilters(current, selection)
       }
       return applyMatrixSelectionToFilters(current, selection)
-    })
-
-    requestAnimationFrame(() => {
-      document
-        .getElementById('filter-bar-section')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-
-      const section = document.getElementById('items-table-section')
-      if (section instanceof HTMLDetailsElement) {
-        section.open = true
-      }
     })
   }, [])
 
@@ -318,207 +275,54 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="hero">
-        <div className="hero-content">
-          <p className="eyebrow">ITSM SONDA · Panel de avance</p>
-          <h1>Estado operativo de incidentes y solicitudes</h1>
-          <p className="subtitle">
-            Monitorea el progreso y la distribución por equipos.
-          </p>
-          {fetchedAt && !loading && (
-            <p className="last-update">
-              Última actualización:{' '}
-              {new Intl.DateTimeFormat('es-CL', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              }).format(fetchedAt)}
-            </p>
-          )}
-        </div>
+      <AppNav
+        route={route}
+        onNavigate={navigate}
+        username={username}
+        isAdmin={isAdmin}
+        loading={loading}
+        urgentCount={urgentCount}
+        onLogout={handleLogout}
+        onRefresh={() => void loadData()}
+        onOpenUrgent={() => setUrgentModalOpen(true)}
+      />
 
-        <div className="hero-actions">
-          {!loading && !error && (
-            <span className="source-badge itsm">
-              {username
-                ? `${username}${isAdmin ? ' · Admin' : ''} · ITSM`
-                : 'Conectado a ITSM'}
-            </span>
-          )}
-          <div className="hero-actions-buttons">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleLogout}
-            >
-              Cerrar sesión
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => void handleExportXlsx()}
-              disabled={loading || exporting || items.length === 0}
-              title={`${exportCounts.open} abiertos y ${exportCounts.closed} cerrados`}
-            >
-              {exporting
-                ? 'Preparando XLSX...'
-                : `Descargar XLSX (${exportCounts.open}+${exportCounts.closed})`}
-            </button>
-            <button
-              type="button"
-              className="secondary-button urgent-open-button"
-              onClick={() => setUrgentModalOpen(true)}
-              disabled={loading}
-            >
-              Casos urgentes{urgentCount > 0 ? ` (${urgentCount})` : ''}
-            </button>
-            <button type="button" onClick={() => void loadData()} disabled={loading}>
-              {loading ? 'Actualizando...' : 'Actualizar datos'}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="app">
-        {loading && <LoadingState />}
-
-        {error && (
-          <div className="alert error" role="alert">
-            <strong>No se pudieron cargar los datos.</strong>
-            <p>{error}</p>
-          </div>
-        )}
-
-        {!loading && !error && (
-          <div className="dashboard-sections">
-            <SummaryCards {...summary} totalItems={totalItems} />
-
-            <FilterBar
-              filters={filters}
-              itemTypes={itemTypes}
-              groups={groups}
-              states={states}
-              responsibles={responsibles}
-              resultCount={filteredItems.length}
-              totalCount={items.length}
-              onChange={setFilters}
-              onReset={() => setFilters(DEFAULT_FILTERS)}
-            />
-
-            <CollapsibleSection
-              title="Análisis personalizado"
-              description="Gráficos y tabla agrupada según el campo seleccionado."
-              defaultOpen={false}
-            >
-              <div className="custom-controls">
-                <div className="controls-row">
-                  <label>
-                    Agrupar por
-                    <select
-                      value={customField}
-                      onChange={(e) =>
-                        setCustomField(e.target.value as GroupField)
-                      }
-                    >
-                      {GROUP_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label>
-                    Tipo de gráfico
-                    <select
-                      value={chartType}
-                      onChange={(e) =>
-                        setChartType(e.target.value as 'bar' | 'pie')
-                      }
-                    >
-                      <option value="bar">Barras</option>
-                      <option value="pie">Circular</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              {chartType === 'bar' ? (
-                <BarCountChart
-                  title={`Cantidad por ${customLabel}`}
-                  data={customGrouped}
-                  color="#6366f1"
-                  maxItems={15}
-                />
-              ) : (
-                <PieCountChart
-                  title={`Distribución por ${customLabel}`}
-                  data={customGrouped}
-                  maxItems={8}
-                />
-              )}
-
-              <div className="table-wrapper compact-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>{customLabel}</th>
-                      <th>Cantidad</th>
-                      <th>% del filtrado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customGrouped.map((row, index) => (
-                      <tr key={row.name}>
-                        <td>{index + 1}</td>
-                        <td>{row.name}</td>
-                        <td>{row.count}</td>
-                        <td>
-                          {summary.total === 0
-                            ? '0%'
-                            : `${((row.count / summary.total) * 100).toFixed(1)}%`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              id="items-table-section"
-              title="Detalle de tickets"
-              description="Haz clic en una fila para ver el detalle completo."
-              defaultOpen
-            >
-              <ItemsTable
-                items={filteredItems}
-                onSelect={setSelectedItem}
-                deliveryDatesById={deliveryDatesById}
-                deliveryDatesLoading={deliveryDatesLoading}
-              />
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title="Tickets por responsable y estado"
-              description="Tabla cruzada por persona y estado. Se sincroniza con los filtros de arriba."
-              defaultOpen={false}
-              className="matrix-section"
-            >
-              <p className="matrix-hint">
-                Usa los filtros superiores o haz clic en un número, responsable o
-                estado. Vuelve a hacer clic para quitar el filtro.
-              </p>
-
-              <ResponsibleStateMatrixTable
-                matrix={responsibleStateMatrix}
-                activeSelection={matrixSelection}
-                onSelect={handleMatrixSelect}
-              />
-            </CollapsibleSection>
-          </div>
-        )}
-      </main>
+      {route === 'dashboard' ? (
+        <DashboardPage
+          loading={loading}
+          error={error}
+          fetchedAt={fetchedAt}
+          totalItems={totalItems}
+          summary={summary}
+          filters={filters}
+          itemTypes={itemTypes}
+          groups={groups}
+          states={states}
+          responsibles={responsibles}
+          filteredItems={filteredItems}
+          items={items}
+          customField={customField}
+          chartType={chartType}
+          customGrouped={customGrouped}
+          responsibleStateMatrix={responsibleStateMatrix}
+          matrixSelection={matrixSelection}
+          deliveryDatesById={deliveryDatesById}
+          deliveryDatesLoading={deliveryDatesLoading}
+          onFiltersChange={setFilters}
+          onFiltersReset={() => setFilters(DEFAULT_FILTERS)}
+          onCustomFieldChange={setCustomField}
+          onChartTypeChange={setChartType}
+          onMatrixSelect={handleMatrixSelect}
+          onSelectItem={setSelectedItem}
+        />
+      ) : (
+        <ReportingPage
+          items={items}
+          fetchedAt={fetchedAt}
+          loading={loading}
+          error={error}
+        />
+      )}
 
       <UrgentCasesModal
         open={urgentModalOpen}

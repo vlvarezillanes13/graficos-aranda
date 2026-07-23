@@ -4,6 +4,24 @@ import type { HistoryDetail, HistoryEntry } from '../types/itemHistory'
 const DATE_FIELD_PATTERN =
   /fecha|date|creado|modific|entrega|estimada|iteraci/i
 
+export function getHistoryDetails(entry: HistoryEntry): HistoryDetail[] {
+  const { detail } = entry as HistoryEntry & {
+    detail?: HistoryDetail[] | HistoryDetail | null
+  }
+
+  if (detail == null) return []
+  if (Array.isArray(detail)) return detail
+  if (typeof detail === 'object') return [detail]
+  return []
+}
+
+export function normalizeHistoryEntry(entry: HistoryEntry): HistoryEntry {
+  return {
+    ...entry,
+    detail: getHistoryDetails(entry),
+  }
+}
+
 export function getHistoryActionLabel(entry: HistoryEntry): string {
   switch (entry.actionId) {
     case 1:
@@ -34,7 +52,7 @@ export function getHistoryActionKind(
     return 'note'
   }
   if (entry.actionId === 1) return 'creation'
-  if (entry.detail.length > 0) return 'modification'
+  if (getHistoryDetails(entry).length > 0) return 'modification'
   if (entry.descriptionNoHtml?.trim()) return 'note'
   return 'other'
 }
@@ -97,7 +115,7 @@ export function getAttachmentFileName(entry: HistoryEntry): string {
     return entry.descriptionNoHtml.trim()
   }
 
-  const fileDetail = entry.detail.find((row) =>
+  const fileDetail = getHistoryDetails(entry).find((row) =>
     /file/i.test(row.fieldName),
   )
   if (fileDetail?.newValue) {
@@ -127,7 +145,7 @@ export function getHistorySummary(entry: HistoryEntry): string {
   }
 
   if (kind === 'modification' || kind === 'creation') {
-    return entry.detail
+    return getHistoryDetails(entry)
       .map((row) => row.fieldName)
       .filter(Boolean)
       .join(', ')

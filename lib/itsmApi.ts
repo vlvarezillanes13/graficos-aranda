@@ -89,6 +89,8 @@ export interface ItemHistoryParams {
   statusId: number
   consoleType?: number
   limitDescription?: boolean
+  pageIndex?: number
+  pageSize?: number
 }
 
 export function buildItemHistoryUrl(
@@ -102,6 +104,14 @@ export function buildItemHistoryUrl(
     statusId: String(historyParams.statusId),
     limitDescription: String(historyParams.limitDescription ?? false),
   })
+
+  if (historyParams.pageIndex !== undefined) {
+    params.set('pageIndex', String(historyParams.pageIndex))
+  }
+
+  if (historyParams.pageSize !== undefined) {
+    params.set('pageSize', String(historyParams.pageSize))
+  }
 
   return `${ITSM_ORIGIN}/asmsconsole/api/v9/item/${itemId}/history/list?${params}`
 }

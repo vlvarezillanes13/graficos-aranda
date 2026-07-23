@@ -8,6 +8,29 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --brand-950: #1e1b4b;
+  --brand-900: #312e81;
+  --brand-700: #4338ca;
+  --brand-600: #4f46e5;
+  --brand-500: #6366f1;
+  --brand-100: #e0e7ff;
+  --brand-50: #eef2ff;
+
+  --accent-800: #065f46;
+  --accent-700: #047857;
+  --accent-600: #059669;
+  --accent-500: #10b981;
+  --accent-100: #d1fae5;
+  --accent-50: #ecfdf5;
+
+  --surface-page: #f8fafc;
+  --surface-card: #ffffff;
+  --text-muted: #64748b;
+  --nav-bg: #0f172a;
+  --nav-border: rgb(255 255 255 / 10%);
+  --shadow-soft: 0 10px 30px rgb(15 23 42 / 8%);
+  --shadow-nav: 0 10px 40px rgb(15 23 42 / 28%);
 }
 
 * {

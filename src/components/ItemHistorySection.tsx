@@ -9,6 +9,7 @@ import {
   getHistoryActionKind,
   getHistoryActionLabel,
   getHistoryCommentText,
+  getHistoryDetails,
   getHistorySummary,
   shouldOfferFullHistoryComment,
   sortHistoryEntries,
@@ -122,7 +123,8 @@ function HistoryEntryCard({
             <div className="history-attachment-box">{getAttachmentFileName(entry)}</div>
           )}
 
-          {(kind === 'modification' || kind === 'creation') && entry.detail.length > 0 && (
+          {(kind === 'modification' || kind === 'creation') &&
+            getHistoryDetails(entry).length > 0 && (
             <div className="history-table-wrap">
               <table className="history-table">
                 <thead>
@@ -133,7 +135,7 @@ function HistoryEntryCard({
                   </tr>
                 </thead>
                 <tbody>
-                  {entry.detail.map((row, index) => (
+                  {getHistoryDetails(entry).map((row, index) => (
                     <tr key={`${entry.id}-${row.fieldName}-${index}`}>
                       <td>{row.fieldName}</td>
                       <td>{formatHistoryValue(row, row.newValue)}</td>

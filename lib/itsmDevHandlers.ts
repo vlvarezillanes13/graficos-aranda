@@ -260,6 +260,11 @@ export async function handleItsmItemHistory(
   const isClosed = requestUrl.searchParams.get('isClosed') === 'true'
   const modelId = Number(requestUrl.searchParams.get('modelId'))
   const statusId = Number(requestUrl.searchParams.get('statusId'))
+  const pageIndexParam = requestUrl.searchParams.get('pageIndex')
+  const pageSizeParam = requestUrl.searchParams.get('pageSize')
+  const pageIndex =
+    pageIndexParam !== null ? Number(pageIndexParam) : undefined
+  const pageSize = pageSizeParam !== null ? Number(pageSizeParam) : undefined
 
   if (!itemId || Number.isNaN(modelId) || Number.isNaN(statusId)) {
     sendJson(response, 400, {
@@ -271,7 +276,17 @@ export async function handleItsmItemHistory(
   await proxyJsonGet(
     request,
     response,
-    buildItemHistoryUrl(itemId, { isClosed, modelId, statusId }),
+    buildItemHistoryUrl(itemId, {
+      isClosed,
+      modelId,
+      statusId,
+      pageIndex: pageIndex !== undefined && !Number.isNaN(pageIndex)
+        ? pageIndex
+        : undefined,
+      pageSize: pageSize !== undefined && !Number.isNaN(pageSize)
+        ? pageSize
+        : undefined,
+    }),
   )
 }
 

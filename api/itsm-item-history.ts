@@ -33,6 +33,14 @@ export default async function handler(
     typeof req.query.modelId === 'string' ? Number(req.query.modelId) : NaN
   const statusId =
     typeof req.query.statusId === 'string' ? Number(req.query.statusId) : NaN
+  const pageIndex =
+    typeof req.query.pageIndex === 'string'
+      ? Number(req.query.pageIndex)
+      : undefined
+  const pageSize =
+    typeof req.query.pageSize === 'string'
+      ? Number(req.query.pageSize)
+      : undefined
 
   if (!itemId || Number.isNaN(modelId) || Number.isNaN(statusId)) {
     res.status(400).json({
@@ -43,7 +51,17 @@ export default async function handler(
 
   try {
     const upstream = await itsmFetch(
-      buildItemHistoryUrl(itemId, { isClosed, modelId, statusId }),
+      buildItemHistoryUrl(itemId, {
+        isClosed,
+        modelId,
+        statusId,
+        pageIndex: pageIndex !== undefined && !Number.isNaN(pageIndex)
+          ? pageIndex
+          : undefined,
+        pageSize: pageSize !== undefined && !Number.isNaN(pageSize)
+          ? pageSize
+          : undefined,
+      }),
       { method: 'GET' },
     )
     await finishItsmTextProxy(res, upstream)
