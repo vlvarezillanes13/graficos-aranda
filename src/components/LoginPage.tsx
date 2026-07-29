@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import { login } from '../services/authService'
+import {
+  formatAppBuildTooltip,
+  formatAppVersionLabel,
+} from '../utils/appVersion'
 import './LoginPage.css'
 
 interface LoginPageProps {
@@ -68,6 +72,14 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
             {loading ? 'Validando...' : 'Ingresar'}
           </button>
         </form>
+
+        <p
+          className="login-version"
+          title={formatAppBuildTooltip()}
+          aria-label={formatAppBuildTooltip()}
+        >
+          {formatAppVersionLabel()}
+        </p>
       </section>
     </div>
   )

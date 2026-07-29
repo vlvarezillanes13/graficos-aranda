@@ -12,6 +12,10 @@ const MIN_SCALE = 0.5
 const MAX_SCALE = 6
 const SCALE_STEP = 0.25
 
+function clampScale(value: number) {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
+}
+
 export function AttachmentZoomModal({
   name,
   url,
@@ -21,54 +25,104 @@ export function AttachmentZoomModal({
   const [scale, setScale] = useState(1)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const isDraggingRef = useRef(false)
   const dragOrigin = useRef({ x: 0, y: 0, originX: 0, originY: 0 })
   const canvasRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
+  const scaleRef = useRef(scale)
+  const positionRef = useRef(position)
 
-  const clampScale = (value: number) =>
-    Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
+  scaleRef.current = scale
+  positionRef.current = position
 
-  const zoomIn = () => setScale((current) => clampScale(current + SCALE_STEP))
-  const zoomOut = () => setScale((current) => clampScale(current - SCALE_STEP))
+  const clampPosition = useCallback((x: number, y: number, nextScale: number) => {
+    const canvas = canvasRef.current
+    const image = imageRef.current
+    if (!canvas || !image || !image.naturalWidth || !image.naturalHeight) {
+      return { x, y }
+    }
+
+    const { width: canvasW, height: canvasH } = canvas.getBoundingClientRect()
+    const fit = Math.min(
+      canvasW / image.naturalWidth,
+      canvasH / image.naturalHeight,
+      1,
+    )
+    const displayW = image.naturalWidth * fit * nextScale
+    const displayH = image.naturalHeight * fit * nextScale
+    const maxX = Math.max(0, (displayW - canvasW) / 2)
+    const maxY = Math.max(0, (displayH - canvasH) / 2)
+
+    return {
+      x: Math.min(maxX, Math.max(-maxX, x)),
+      y: Math.min(maxY, Math.max(-maxY, y)),
+    }
+  }, [])
+
+  const applyScale = useCallback(
+    (nextScale: number) => {
+      const clamped = clampScale(nextScale)
+      setScale(clamped)
+      setPosition((current) =>
+        clamped <= 1 ? { x: 0, y: 0 } : clampPosition(current.x, current.y, clamped),
+      )
+    },
+    [clampPosition],
+  )
+
+  const zoomIn = () => applyScale(scale + SCALE_STEP)
+  const zoomOut = () => applyScale(scale - SCALE_STEP)
   const resetView = () => {
     setScale(1)
     setPosition({ x: 0, y: 0 })
   }
 
-  const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-    if (kind !== 'image') return
+  const handleWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (kind !== 'image') return
 
-    event.preventDefault()
-    const direction = event.deltaY < 0 ? 1 : -1
-    setScale((current) => clampScale(current + direction * SCALE_STEP))
-  }, [kind])
+      event.preventDefault()
+      const direction = event.deltaY < 0 ? 1 : -1
+      applyScale(scaleRef.current + direction * SCALE_STEP)
+    },
+    [applyScale, kind],
+  )
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (kind !== 'image' || scale <= 1) return
+    if (kind !== 'image' || scaleRef.current <= 1) return
+    if (event.button !== 0) return
 
+    event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
+    isDraggingRef.current = true
     setIsDragging(true)
     dragOrigin.current = {
       x: event.clientX,
       y: event.clientY,
-      originX: position.x,
-      originY: position.y,
+      originX: positionRef.current.x,
+      originY: positionRef.current.y,
     }
   }
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return
+    if (!isDraggingRef.current) return
 
-    setPosition({
+    event.preventDefault()
+    const next = {
       x: dragOrigin.current.originX + (event.clientX - dragOrigin.current.x),
       y: dragOrigin.current.originY + (event.clientY - dragOrigin.current.y),
-    })
+    }
+    setPosition(clampPosition(next.x, next.y, scaleRef.current))
   }
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return
+    if (!isDraggingRef.current) return
 
-    event.currentTarget.releasePointerCapture(event.pointerId)
+    isDraggingRef.current = false
     setIsDragging(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
   }
 
   useEffect(() => {
@@ -91,6 +145,8 @@ export function AttachmentZoomModal({
     canvas.addEventListener('wheel', preventScroll, { passive: false })
     return () => canvas.removeEventListener('wheel', preventScroll)
   }, [kind])
+
+  const canPan = kind === 'image' && scale > 1
 
   return (
     <div
@@ -147,22 +203,27 @@ export function AttachmentZoomModal({
           {kind === 'image' && (
             <div
               ref={canvasRef}
-              className={`attachment-zoom-canvas${isDragging ? ' is-dragging' : ''}`}
+              className={`attachment-zoom-canvas${canPan ? ' can-pan' : ''}${isDragging ? ' is-dragging' : ''}`}
               onWheel={handleWheel}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
             >
-              <img
-                src={url}
-                alt={name}
-                className="attachment-zoom-image"
+              <div
+                className="attachment-zoom-layer"
                 style={{
-                  transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                  transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${scale})`,
                 }}
-                draggable={false}
-              />
+              >
+                <img
+                  ref={imageRef}
+                  src={url}
+                  alt={name}
+                  className="attachment-zoom-image"
+                  draggable={false}
+                />
+              </div>
             </div>
           )}
 
@@ -195,7 +256,8 @@ export function AttachmentZoomModal({
 
         {kind === 'image' && (
           <p className="attachment-zoom-hint">
-            Usa la rueda del mouse o los botones +/− para hacer zoom. Arrastra para mover la imagen.
+            Usa la rueda del mouse o los botones +/− para hacer zoom. Con zoom activo, arrastra para
+            recorrer la imagen.
           </p>
         )}
 

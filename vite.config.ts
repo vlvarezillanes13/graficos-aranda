@@ -1,8 +1,16 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import react from '@vitejs/plugin-react'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Plugin } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
 import { handleAuthLogin, handleAuthVerify, handleItsmAuthGuard } from './lib/authDevServer.js'
+
+const rootDir = dirname(fileURLToPath(import.meta.url))
+const packageJson = JSON.parse(
+  readFileSync(join(rootDir, 'package.json'), 'utf-8'),
+) as { version: string }
 import {
   handleItsmAdditionalFields,
   handleItsmAssignResponsible,
@@ -153,6 +161,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), authApiDevPlugin(env)],
+    define: {
+      __APP_VERSION__: JSON.stringify(packageJson.version),
+      __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    },
     server: {
       port: 5173,
     },

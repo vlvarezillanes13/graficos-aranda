@@ -1,4 +1,8 @@
 import type { AppRoute } from '../routing/appRoute'
+import {
+  formatAppBuildTooltip,
+  formatAppVersionLabel,
+} from '../utils/appVersion'
 
 interface AppNavProps {
   route: AppRoute
@@ -55,6 +59,13 @@ export function AppNav({
             <span className="app-nav-logo">ITSM SONDA</span>
             <span className="app-nav-tag">Consultoría AFC</span>
           </div>
+          <span
+            className="app-version-badge"
+            title={formatAppBuildTooltip()}
+            aria-label={formatAppBuildTooltip()}
+          >
+            {formatAppVersionLabel()}
+          </span>
         </div>
 
         <div className="app-nav-tabs" role="tablist" aria-label="Secciones">
