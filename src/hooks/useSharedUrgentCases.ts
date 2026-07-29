@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchSharedUrgentState,
   saveSharedUrgentState,
@@ -28,6 +28,11 @@ function normalizeIds(ids: string[]): string[] {
   return normalized
 }
 
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((id, index) => id === b[index])
+}
+
 function applySharedState(
   previous: SharedUrgentState,
   next: SharedUrgentState,
@@ -36,6 +41,27 @@ function applySharedState(
     next.version !== undefined &&
     previous.version !== undefined &&
     next.version < previous.version
+  ) {
+    return previous
+  }
+
+  // Misma versión + mismo contenido: conservar referencia (evita resets del modal).
+  if (
+    next.version === previous.version &&
+    sameIds(next.urgentIds, previous.urgentIds) &&
+    next.actualizadoPor === previous.actualizadoPor &&
+    next.actualizadoEn === previous.actualizadoEn
+  ) {
+    return previous
+  }
+
+  // Evitar que un GET vacío (instancia fría / sin KV) borre datos locales
+  // con la misma versión 0.
+  if (
+    next.version === previous.version &&
+    previous.urgentIds.length > 0 &&
+    next.urgentIds.length === 0 &&
+    !next.actualizadoEn
   ) {
     return previous
   }
@@ -54,6 +80,7 @@ export function useSharedUrgentCases(
   }))
   const [connected, setConnected] = useState(false)
   const [connectionError, setConnectionError] = useState('')
+  const savingRef = useRef(false)
 
   useEffect(() => {
     if (!enabled) {
@@ -65,9 +92,11 @@ export function useSharedUrgentCases(
     let cancelled = false
 
     async function refreshSharedState() {
+      if (savingRef.current) return
+
       try {
         const next = await fetchSharedUrgentState()
-        if (cancelled) return
+        if (cancelled || savingRef.current) return
         setState((previous) => applySharedState(previous, next))
         setConnected(true)
         setConnectionError('')
@@ -79,10 +108,11 @@ export function useSharedUrgentCases(
             ? error.message
             : 'No fue posible sincronizar urgentes',
         )
-        setState((current) => ({
-          ...current,
-          urgentIds: readUrgentCaseIds(),
-        }))
+        setState((current) => {
+          const cached = readUrgentCaseIds()
+          if (sameIds(current.urgentIds, cached)) return current
+          return { ...current, urgentIds: cached }
+        })
       }
     }
 
@@ -100,6 +130,7 @@ export function useSharedUrgentCases(
   const updateUrgentIds = useCallback(
     async (ids: string[]) => {
       const normalized = normalizeIds(ids)
+      savingRef.current = true
 
       try {
         const next = await saveSharedUrgentState(
@@ -119,6 +150,8 @@ export function useSharedUrgentCases(
           version: current.version + 1,
         }))
         throw error
+      } finally {
+        savingRef.current = false
       }
     },
     [username],

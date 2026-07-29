@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
 import { downloadUrgentCasesXlsx } from '../utils/exportXlsx'
@@ -48,12 +48,30 @@ export function UrgentCasesModal({
   const [inputError, setInputError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [saving, setSaving] = useState(false)
+  const dirtyRef = useRef(false)
+  const wasOpenRef = useRef(false)
 
+  // Solo hidratar al abrir, o si llega un cambio remoto y el usuario no está editando.
+  // El poll cada 5s no debe borrar lo que se está escribiendo.
   useEffect(() => {
-    if (!open) return
-    setInputValue(formatUrgentCaseIds(urgentIds))
-    setInputError(null)
-  }, [open, urgentIds])
+    if (!open) {
+      wasOpenRef.current = false
+      dirtyRef.current = false
+      return
+    }
+
+    if (!wasOpenRef.current) {
+      setInputValue(formatUrgentCaseIds(urgentIds))
+      setInputError(null)
+      dirtyRef.current = false
+      wasOpenRef.current = true
+      return
+    }
+
+    if (!dirtyRef.current && !saving) {
+      setInputValue(formatUrgentCaseIds(urgentIds))
+    }
+  }, [open, urgentIds, saving])
 
   useEffect(() => {
     if (!open) return
@@ -80,6 +98,7 @@ export function UrgentCasesModal({
       try {
         await onUrgentIdsChange(ids)
         setInputValue(formatUrgentCaseIds(ids))
+        dirtyRef.current = false
       } catch (error) {
         setInputError(
           error instanceof Error
@@ -221,6 +240,7 @@ export function UrgentCasesModal({
               className="urgent-input"
               value={inputValue}
               onChange={(event) => {
+                dirtyRef.current = true
                 setInputValue(event.target.value)
                 setInputError(null)
               }}
