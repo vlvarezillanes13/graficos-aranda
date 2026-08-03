@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
+import { formatDate } from './aggregations'
 import {
   formatDeliveryDate,
   formatDeliveryTestDate,
@@ -28,6 +29,7 @@ function itemToExportRow(
     PRIORIDAD: item.priorityName,
     CATEGORIA: item.categoryHierarchy,
     'SUB-CATEGORIA': item.categoryName,
+    'FECHA DE APERTURA': formatDate(item.openedDate),
     'FECHA DE ENTREGA': formatDeliveryDate(item, deliveryDatesById),
     'FECHA ENTREGA TEST': formatDeliveryTestDate(item, deliveryDatesById),
     'FECHA GESTIÓN AFC': formatUltimaIteracionDate(item, deliveryDatesById),
