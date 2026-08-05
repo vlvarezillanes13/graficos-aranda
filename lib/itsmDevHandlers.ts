@@ -12,6 +12,7 @@ import {
   assignItemResponsible,
   fetchItsmGroupSpecialists,
   fetchItsmGroups,
+  fetchItsmItem,
   type ItemAssignContext,
 } from './assignResponsible.js'
 import { itsmFetch } from './itsmFetch.js'
@@ -22,6 +23,10 @@ import {
   itsmTokenMissingPayload,
   mapUpstreamItsmResponse,
 } from './itsmCredentialsResponse.js'
+
+function pickString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
 
 function sendJson(
   response: ServerResponse,
@@ -290,6 +295,47 @@ export async function handleItsmItemHistory(
   )
 }
 
+export async function handleItsmItem(
+  request: IncomingMessage,
+  response: ServerResponse,
+  requestUrl: URL,
+): Promise<void> {
+  const user = await requireSessionFromAuthHeader(request.headers.authorization)
+  if (!user) {
+    sendJson(response, 401, { error: 'Sesión no válida o expirada', source: 'app' })
+    return
+  }
+
+  const credentials = await assertItsmCredentialsConfigured()
+  if (!credentials.ok) {
+    sendJson(response, 401, credentials.payload)
+    return
+  }
+
+  const itemId = requestUrl.searchParams.get('itemId')
+  if (!itemId) {
+    sendJson(response, 400, { error: 'itemId es obligatorio' })
+    return
+  }
+
+  try {
+    const item = await fetchItsmItem(itemId)
+    sendJson(response, 200, {
+      description: pickString(item.description),
+      descriptionNoHtml: pickString(item.descriptionNoHtml),
+    })
+  } catch (error) {
+    if (error instanceof ItsmCredentialsMissingError) {
+      sendJson(response, 401, itsmTokenMissingPayload())
+      return
+    }
+
+    const message =
+      error instanceof Error ? error.message : 'Error al conectar con ITSM'
+    sendJson(response, 502, { error: message })
+  }
+}
+
 export async function handleItsmFile(
   request: IncomingMessage,
   response: ServerResponse,
@@ -507,6 +553,7 @@ export async function handleItsmAssignResponsible(
 export function isProtectedItsmApi(pathname: string, method?: string): boolean {
   if (pathname === '/api/itsm-search' && method === 'POST') return true
   if (pathname === '/api/itsm-additionalfields' && method === 'POST') return true
+  if (pathname === '/api/itsm-item' && method === 'GET') return true
   if (pathname === '/api/itsm-item-files' && method === 'GET') return true
   if (pathname === '/api/itsm-item-history' && method === 'GET') return true
   if (pathname === '/api/itsm-groups' && method === 'GET') return true

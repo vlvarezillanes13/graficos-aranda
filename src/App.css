@@ -2069,6 +2069,63 @@ th button {
   line-height: 1.6;
 }
 
+.detail-description-muted {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.detail-description-html {
+  color: #334155;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.detail-description-html p {
+  margin: 0 0 0.75rem;
+  white-space: normal;
+}
+
+.detail-description-html p:last-child {
+  margin-bottom: 0;
+}
+
+.detail-description-html img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem 0;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  cursor: zoom-in;
+  background: #f8fafc;
+}
+
+.detail-description-html ul,
+.detail-description-html ol {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.detail-description-html a {
+  color: #1d4ed8;
+}
+
+.detail-description-html table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.detail-description-html th,
+.detail-description-html td {
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.55rem;
+  vertical-align: top;
+}
+
 .detail-attachments {
   margin-top: 1.25rem;
   padding-top: 1.1rem;

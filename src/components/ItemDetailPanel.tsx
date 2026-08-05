@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { IncidentItem } from '../types/incident'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { ItemAttachment } from '../types/attachment'
@@ -17,6 +17,11 @@ import {
   getPreviewKind,
   type PreviewKind,
 } from '../services/attachmentService'
+import { fetchItemDescription } from '../services/itemDescriptionService'
+import {
+  descriptionHasVisualContent,
+  prepareDescriptionHtml,
+} from '../utils/descriptionHtml'
 import { AttachmentZoomModal } from './AttachmentZoomModal'
 import { ChangeResponsibleSection } from './ChangeResponsibleSection'
 import { CopyableTicketId } from './CopyableTicketId'
@@ -54,6 +59,13 @@ export function ItemDetailPanel({
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [zoomOpen, setZoomOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<DetailTab>('detail')
+  const [descriptionHtml, setDescriptionHtml] = useState<string | null>(null)
+  const [descriptionLoading, setDescriptionLoading] = useState(false)
+  const [descriptionZoom, setDescriptionZoom] = useState<{
+    name: string
+    url: string
+  } | null>(null)
+  const revokeDescriptionUrls = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (activeTab === 'assignment' && !canAssignResponsible) {
@@ -97,6 +109,49 @@ export function ItemDetailPanel({
   }, [item])
 
   useEffect(() => {
+    if (!item) return
+
+    let cancelled = false
+    setDescriptionHtml(null)
+    setDescriptionZoom(null)
+    setDescriptionLoading(true)
+    revokeDescriptionUrls.current?.()
+    revokeDescriptionUrls.current = null
+
+    void fetchItemDescription(item.id)
+      .then(async (payload) => {
+        const rawHtml = payload.description.trim()
+        if (!rawHtml || !descriptionHasVisualContent(rawHtml)) {
+          if (!cancelled) setDescriptionHtml(null)
+          return
+        }
+
+        const prepared = await prepareDescriptionHtml(rawHtml)
+        if (cancelled) {
+          prepared.revoke()
+          return
+        }
+
+        revokeDescriptionUrls.current = prepared.revoke
+        setDescriptionHtml(
+          descriptionHasVisualContent(prepared.html) ? prepared.html : null,
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setDescriptionHtml(null)
+      })
+      .finally(() => {
+        if (!cancelled) setDescriptionLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+      revokeDescriptionUrls.current?.()
+      revokeDescriptionUrls.current = null
+    }
+  }, [item])
+
+  useEffect(() => {
     return () => {
       if (preview?.url) {
         URL.revokeObjectURL(preview.url)
@@ -136,6 +191,18 @@ export function ItemDetailPanel({
     } finally {
       setPreviewLoading(false)
     }
+  }
+
+  const fallbackDescription = item.descriptionNoHtml.trim() || 'Sin descripción'
+
+  const handleDescriptionClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (!(target instanceof HTMLImageElement)) return
+    if (!target.src) return
+    setDescriptionZoom({
+      name: target.alt?.trim() || 'Imagen de la descripción',
+      url: target.src,
+    })
   }
 
   return (
@@ -295,7 +362,19 @@ export function ItemDetailPanel({
 
         <div className="detail-description">
           <h3>Descripción</h3>
-          <p>{item.descriptionNoHtml.trim() || 'Sin descripción'}</p>
+          {descriptionLoading && (
+            <p className="detail-description-muted">Cargando descripción...</p>
+          )}
+          {!descriptionLoading && descriptionHtml && (
+            <div
+              className="detail-description-html"
+              onClick={handleDescriptionClick}
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+            />
+          )}
+          {!descriptionLoading && !descriptionHtml && (
+            <p>{fallbackDescription}</p>
+          )}
         </div>
 
         <section className="detail-attachments">
@@ -443,6 +522,15 @@ export function ItemDetailPanel({
             url={preview.url}
             kind={preview.kind}
             onClose={() => setZoomOpen(false)}
+          />
+        )}
+
+        {descriptionZoom && (
+          <AttachmentZoomModal
+            name={descriptionZoom.name}
+            url={descriptionZoom.url}
+            kind="image"
+            onClose={() => setDescriptionZoom(null)}
           />
         )}
       </aside>

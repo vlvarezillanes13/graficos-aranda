@@ -21,6 +21,7 @@ import {
   handleItsmGroups,
   handleItsmItemFiles,
   handleItsmItemHistory,
+  handleItsmItem,
   handleItsmSearch,
   isProtectedItsmApi,
 } from './lib/itsmDevHandlers.js'
@@ -76,6 +77,13 @@ function createAuthMiddleware() {
     if (pathname === '/api/itsm-item-files' && req.method === 'GET') {
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) void handleItsmItemFiles(req, res, requestUrl)
+      })
+      return
+    }
+
+    if (pathname === '/api/itsm-item' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleItsmItem(req, res, requestUrl)
       })
       return
     }
