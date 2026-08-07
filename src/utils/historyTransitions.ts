@@ -183,7 +183,7 @@ export function findFirstStateTransition(
 /**
  * First transition to `stateName` while the ticket's group was `groupName`.
  * Group changes in the same history entry are applied before evaluating state.
- * `fallbackGroupName` seeds the group when history has no prior group change
+ * `fallbackGroupName` is only used when history has no group changes at all
  * (e.g. ticket created already in Mantención).
  */
 export function findEarliestStateTransitionInGroup(
@@ -197,8 +197,9 @@ export function findEarliestStateTransitionInGroup(
     return a.id - b.id
   })
 
-  let currentGroup: string | null = normalizeText(fallbackGroupName) || null
-  let groupKnownFromHistory = false
+  let currentGroup =
+    inferStartingGroup(sorted) ??
+    (normalizeText(fallbackGroupName) || null)
   const candidates: HistoryTransition[] = []
 
   for (const entry of sorted) {
@@ -207,14 +208,12 @@ export function findEarliestStateTransitionInGroup(
     for (const detail of details) {
       if (!isGroupField(detail.fieldName)) continue
 
-      if (!groupKnownFromHistory && normalizeText(detail.oldValue)) {
+      if (!currentGroup && normalizeText(detail.oldValue)) {
         currentGroup = normalizeText(detail.oldValue)
-        groupKnownFromHistory = true
       }
 
       if (normalizeText(detail.newValue)) {
         currentGroup = normalizeText(detail.newValue)
-        groupKnownFromHistory = true
       }
     }
 
@@ -226,6 +225,36 @@ export function findEarliestStateTransitionInGroup(
   }
 
   return pickEarliestTransition(candidates)
+}
+
+function inferStartingGroup(entries: HistoryEntry[]): string | null {
+  let earliest: {
+    timestamp: number
+    id: number
+    oldValue: string
+  } | null = null
+
+  for (const entry of entries) {
+    for (const detail of getHistoryDetails(entry)) {
+      if (!isGroupField(detail.fieldName)) continue
+      const oldValue = normalizeText(detail.oldValue)
+      if (!oldValue) continue
+
+      if (
+        !earliest ||
+        entry.created < earliest.timestamp ||
+        (entry.created === earliest.timestamp && entry.id < earliest.id)
+      ) {
+        earliest = {
+          timestamp: entry.created,
+          id: entry.id,
+          oldValue,
+        }
+      }
+    }
+  }
+
+  return earliest?.oldValue ?? null
 }
 
 /**
