@@ -179,3 +179,77 @@ export function findFirstStateTransition(
 ): HistoryTransition | null {
   return findEarliestStateTransition(entries, stateName)
 }
+
+/**
+ * First transition to `stateName` while the ticket's group was `groupName`.
+ * Group changes in the same history entry are applied before evaluating state.
+ * `fallbackGroupName` seeds the group when history has no prior group change
+ * (e.g. ticket created already in Mantención).
+ */
+export function findEarliestStateTransitionInGroup(
+  entries: HistoryEntry[],
+  stateName: string,
+  groupName: string,
+  fallbackGroupName?: string | null,
+): HistoryTransition | null {
+  const sorted = [...entries].sort((a, b) => {
+    if (a.created !== b.created) return a.created - b.created
+    return a.id - b.id
+  })
+
+  let currentGroup: string | null = normalizeText(fallbackGroupName) || null
+  let groupKnownFromHistory = false
+  const candidates: HistoryTransition[] = []
+
+  for (const entry of sorted) {
+    const details = getHistoryDetails(entry)
+
+    for (const detail of details) {
+      if (!isGroupField(detail.fieldName)) continue
+
+      if (!groupKnownFromHistory && normalizeText(detail.oldValue)) {
+        currentGroup = normalizeText(detail.oldValue)
+        groupKnownFromHistory = true
+      }
+
+      if (normalizeText(detail.newValue)) {
+        currentGroup = normalizeText(detail.newValue)
+        groupKnownFromHistory = true
+      }
+    }
+
+    for (const detail of details) {
+      if (!isTransitionToState(detail, stateName)) continue
+      if (!matchesTarget(currentGroup, groupName)) continue
+      candidates.push({ timestamp: entry.created, entry, detail })
+    }
+  }
+
+  return pickEarliestTransition(candidates)
+}
+
+/**
+ * Initial date for AFC report:
+ * - if the ticket ever went to Consultoría AFC → that first group transition
+ * - otherwise → first In Progress while in Mantención
+ */
+export function findReportInitialTransition(
+  entries: HistoryEntry[],
+  consultoriaGroup: string,
+  mantencionGroup: string,
+  inProgressState: string,
+  currentGroupName?: string | null,
+): HistoryTransition | null {
+  const consultoriaTransition = findEarliestGroupTransition(
+    entries,
+    consultoriaGroup,
+  )
+  if (consultoriaTransition) return consultoriaTransition
+
+  return findEarliestStateTransitionInGroup(
+    entries,
+    inProgressState,
+    mantencionGroup,
+    currentGroupName,
+  )
+}

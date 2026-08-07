@@ -12,8 +12,6 @@ import {
   type AfcReportFilters,
   type ReportingProgress,
 } from '../utils/reportingExport'
-import { AFC_CONSULTORIA_GROUP } from '../config/reporting'
-
 interface ReportingSectionProps {
   items: IncidentItem[]
   fetchedAt: Date | null
@@ -165,8 +163,8 @@ export function ReportingSection({
               ◷
             </span>
             <span className="panel-tab-copy">
-              <strong>Resueltos · Consultoría AFC</strong>
-              <small>Historial y horas laborales</small>
+              <strong>Historial · Consultoría AFC</strong>
+              <small>Todos menos Standby</small>
             </span>
             <span className="panel-tab-badge is-accent">
               {afcReportItems.length}
@@ -226,11 +224,12 @@ export function ReportingSection({
             className="panel-tab-panel is-afc"
           >
             <div className="panel-tab-panel-intro">
-              <h3>Reporte AFC resuelto</h3>
+              <h3>Reporte historial AFC</h3>
               <p>
-                Solo tickets resueltos del grupo {AFC_CONSULTORIA_GROUP}. Por
-                fila exporta creación, primer paso al grupo, cambios de estado
-                en columnas y total de horas laborales con fórmula Excel.
+                Incluye todos los tickets del panel (excluye Standby). Por fila
+                exporta creación, fecha inicial (paso a Consultoría AFC, o si
+                no aplica la primera vez In Progress en Mantención), cambios de
+                estado en columnas y total de horas laborales con fórmula Excel.
               </p>
             </div>
 

@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx'
 import {
   AFC_CONSULTORIA_GROUP,
-  RESOLVED_STATE,
+  AFC_MANTENCION_GROUP,
+  IN_PROGRESS_STATE,
 } from '../config/reporting'
 import {
   CHILEAN_HOLIDAY_RANGE,
@@ -11,7 +12,7 @@ import { fetchItemHistory } from '../services/itemHistoryService'
 import type { IncidentItem } from '../types/incident'
 import {
   collectAllStateTransitions,
-  findEarliestGroupTransition,
+  findReportInitialTransition,
   formatHistoryTransitionValue,
   type HistoryTransition,
 } from './historyTransitions'
@@ -34,7 +35,7 @@ type AfcHorizontalExportRow = Record<string, string | number | null>
 interface AfcTicketHistoryData {
   item: IncidentItem
   stateTransitions: HistoryTransition[]
-  afcTransition: HistoryTransition | null
+  initialTransition: HistoryTransition | null
 }
 
 interface AfcReportRowData {
@@ -88,14 +89,6 @@ function normalizeStateName(value: string | null | undefined): string {
   return normalizeText(value).toLocaleLowerCase('es-CL')
 }
 
-function belongsToAfcGroup(groupName: string): boolean {
-  return (
-    normalizeText(groupName).localeCompare(AFC_CONSULTORIA_GROUP, undefined, {
-      sensitivity: 'accent',
-    }) === 0
-  )
-}
-
 function parseDateInputStart(value: string): number | null {
   if (!value.trim()) return null
   const [year, month, day] = value.split('-').map(Number)
@@ -125,8 +118,6 @@ export function getAfcReportItems(
   const toTs = parseDateInputEnd(filters.createdTo)
 
   return items.filter((item) => {
-    if (item.stateName !== RESOLVED_STATE) return false
-    if (!belongsToAfcGroup(item.groupName)) return false
     if (fromTs !== null && item.openedDate < fromTs) return false
     if (toTs !== null && item.openedDate > toTs) return false
     return true
@@ -235,7 +226,13 @@ async function fetchAfcTicketHistoryData(
   return {
     item,
     stateTransitions: collectAllStateTransitions(history),
-    afcTransition: findEarliestGroupTransition(history, AFC_CONSULTORIA_GROUP),
+    initialTransition: findReportInitialTransition(
+      history,
+      AFC_CONSULTORIA_GROUP,
+      AFC_MANTENCION_GROUP,
+      IN_PROGRESS_STATE,
+      item.groupName,
+    ),
   }
 }
 
@@ -243,13 +240,13 @@ function buildAfcReportRowData(
   data: AfcTicketHistoryData,
   maxTransitions: number,
 ): AfcReportRowData {
-  const { item, stateTransitions, afcTransition } = data
+  const { item, stateTransitions, initialTransition } = data
 
   const row: AfcHorizontalExportRow = {
     'N° TICKET': item.idByProject,
     'FECHA CREACIÓN': timestampToExcelSerial(item.openedDate),
-    'FECHA PASO A CL-CONSULTORIA AFC': afcTransition
-      ? timestampToExcelSerial(afcTransition.timestamp)
+    'FECHA INICIAL': initialTransition
+      ? timestampToExcelSerial(initialTransition.timestamp)
       : null,
   }
 
@@ -324,7 +321,7 @@ function buildAfcReportHeaders(maxTransitions: number): string[] {
   const headers = [
     'N° TICKET',
     'FECHA CREACIÓN',
-    'FECHA PASO A CL-CONSULTORIA AFC',
+    'FECHA INICIAL',
   ]
 
   for (let sequence = 1; sequence <= maxTransitions; sequence += 1) {
