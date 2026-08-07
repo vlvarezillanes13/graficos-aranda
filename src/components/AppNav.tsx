@@ -21,7 +21,7 @@ const NAV_ITEMS: Array<{
   label: string
   hint: string
   icon: string
-  modifier: 'dashboard' | 'reporting'
+  modifier: 'dashboard' | 'reporting' | 'standby'
 }> = [
   {
     route: 'dashboard',
@@ -29,6 +29,13 @@ const NAV_ITEMS: Array<{
     hint: 'Monitoreo y tickets',
     icon: '◫',
     modifier: 'dashboard',
+  },
+  {
+    route: 'standby',
+    label: 'Standby',
+    hint: 'Categoría Standby',
+    icon: '⏸',
+    modifier: 'standby',
   },
   {
     route: 'reporting',

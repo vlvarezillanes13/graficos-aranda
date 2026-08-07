@@ -1,11 +1,15 @@
-export type AppRoute = 'dashboard' | 'reporting'
+export type AppRoute = 'dashboard' | 'reporting' | 'standby'
 
 export function getAppRouteFromPath(pathname: string): AppRoute {
-  return pathname.startsWith('/reporteria') ? 'reporting' : 'dashboard'
+  if (pathname.startsWith('/reporteria')) return 'reporting'
+  if (pathname.startsWith('/standby')) return 'standby'
+  return 'dashboard'
 }
 
 export function getPathForRoute(route: AppRoute): string {
-  return route === 'reporting' ? '/reporteria' : '/'
+  if (route === 'reporting') return '/reporteria'
+  if (route === 'standby') return '/standby'
+  return '/'
 }
 
 export function navigateToRoute(route: AppRoute): void {

@@ -24,5 +24,6 @@ export function useAppRoute() {
     navigate: navigateToRoute,
     isDashboard: route === 'dashboard',
     isReporting: route === 'reporting',
+    isStandby: route === 'standby',
   }
 }

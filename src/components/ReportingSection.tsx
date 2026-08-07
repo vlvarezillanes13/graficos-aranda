@@ -146,7 +146,7 @@ export function ReportingSection({
             </span>
             <span className="panel-tab-copy">
               <strong>Datos completos</strong>
-              <small>Todos los tickets cargados</small>
+              <small>Sin tickets Standby</small>
             </span>
             <span className="panel-tab-badge">{exportCounts.total}</span>
           </button>
@@ -184,9 +184,9 @@ export function ReportingSection({
             <div className="panel-tab-panel-intro">
               <h3>Exportación general</h3>
               <p>
-                Incluye todos los tickets cargados con detalle operativo,
-                fechas de entrega y campos AFC. Genera un archivo con hojas
-                Todos, Abiertos y Cerrados.
+                Incluye los tickets del panel operativo (excluye categoría
+                Standby) con detalle, fechas de entrega y campos AFC. Genera un
+                archivo con hojas Todos, Abiertos y Cerrados.
               </p>
             </div>
 

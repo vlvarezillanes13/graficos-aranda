@@ -35,12 +35,14 @@ import {
   type MatrixSelection,
 } from './utils/aggregations'
 import { filterUrgentItems } from './utils/urgentCases'
+import { partitionStandbyItems } from './utils/standbyItems'
 import { useAppRoute } from './hooks/useAppRoute'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
 import { useBackgroundRefresh } from './hooks/useBackgroundRefresh'
 import { useDeliveryDates } from './hooks/useDeliveryDates'
 import { useSharedUrgentCases } from './hooks/useSharedUrgentCases'
 import { clearDeliveryDatesCache } from './services/deliveryDatesService'
+import { StandbyPage } from './pages/StandbyPage'
 import './App.css'
 
 const DEFAULT_FILTERS: FilterState = {
@@ -57,7 +59,6 @@ function App() {
   const [authReady, setAuthReady] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
   const [items, setItems] = useState<IncidentItem[]>([])
-  const [totalItems, setTotalItems] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null)
@@ -84,7 +85,6 @@ function App() {
 
   const applyFetchResult = useCallback((result: FetchResult) => {
     setItems(result.items)
-    setTotalItems(result.totalItems)
     setFetchedAt(result.fetchedAt)
     setSelectedItem((current) => {
       if (!current) return null
@@ -112,7 +112,6 @@ function App() {
       }
       setError(err instanceof Error ? err.message : 'Error desconocido')
       setItems([])
-      setTotalItems(0)
     } finally {
       setLoading(false)
     }
@@ -167,14 +166,19 @@ function App() {
     authenticated && !loading && items.length > 0,
   )
 
+  const { operationalItems, standbyItems } = useMemo(
+    () => partitionStandbyItems(items),
+    [items],
+  )
+
   const filteredItems = useMemo(
-    () => filterItems(items, filters),
-    [items, filters],
+    () => filterItems(operationalItems, filters),
+    [operationalItems, filters],
   )
 
   const urgentItems = useMemo(
-    () => filterUrgentItems(items, urgentIds),
-    [items, urgentIds],
+    () => filterUrgentItems(operationalItems, urgentIds),
+    [operationalItems, urgentIds],
   )
 
   const itemsForDeliveryDates = useMemo(() => {
@@ -188,24 +192,37 @@ function App() {
       byId.set(item.id, item)
     }
 
+    for (const item of standbyItems) {
+      byId.set(item.id, item)
+    }
+
     if (selectedItem) {
       byId.set(selectedItem.id, selectedItem)
     }
 
     return Array.from(byId.values())
-  }, [filteredItems, urgentItems, selectedItem])
+  }, [filteredItems, urgentItems, standbyItems, selectedItem])
 
   const { datesById: deliveryDatesById, loading: deliveryDatesLoading } =
     useDeliveryDates(itemsForDeliveryDates)
 
   const summary = useMemo(() => getSummary(filteredItems), [filteredItems])
 
-  const itemTypes = useMemo(() => getUniqueValues(items, 'itemTypeName'), [items])
-  const groups = useMemo(() => getUniqueValues(items, 'groupName'), [items])
-  const states = useMemo(() => getUniqueValues(items, 'stateName'), [items])
+  const itemTypes = useMemo(
+    () => getUniqueValues(operationalItems, 'itemTypeName'),
+    [operationalItems],
+  )
+  const groups = useMemo(
+    () => getUniqueValues(operationalItems, 'groupName'),
+    [operationalItems],
+  )
+  const states = useMemo(
+    () => getUniqueValues(operationalItems, 'stateName'),
+    [operationalItems],
+  )
   const responsibles = useMemo(
-    () => getUniqueValues(items, 'responsibleName'),
-    [items],
+    () => getUniqueValues(operationalItems, 'responsibleName'),
+    [operationalItems],
   )
 
   const matrixSelection = useMemo(
@@ -246,7 +263,6 @@ function App() {
     logout()
     setAuthenticated(false)
     setItems([])
-    setTotalItems(0)
     setError(null)
     setFetchedAt(null)
     setFilters(DEFAULT_FILTERS)
@@ -292,7 +308,7 @@ function App() {
           loading={loading}
           error={error}
           fetchedAt={fetchedAt}
-          totalItems={totalItems}
+          totalItems={operationalItems.length}
           summary={summary}
           filters={filters}
           itemTypes={itemTypes}
@@ -300,7 +316,7 @@ function App() {
           states={states}
           responsibles={responsibles}
           filteredItems={filteredItems}
-          items={items}
+          items={operationalItems}
           customField={customField}
           chartType={chartType}
           customGrouped={customGrouped}
@@ -316,9 +332,20 @@ function App() {
           onMatrixSelect={handleMatrixSelect}
           onSelectItem={setSelectedItem}
         />
+      ) : route === 'standby' ? (
+        <StandbyPage
+          loading={loading}
+          error={error}
+          fetchedAt={fetchedAt}
+          items={standbyItems}
+          deliveryDatesById={deliveryDatesById}
+          deliveryDatesLoading={deliveryDatesLoading}
+          urgentIds={urgentIds}
+          onSelectItem={setSelectedItem}
+        />
       ) : (
         <ReportingPage
-          items={items}
+          items={operationalItems}
           fetchedAt={fetchedAt}
           loading={loading}
           error={error}
@@ -327,7 +354,7 @@ function App() {
 
       <UrgentCasesModal
         open={urgentModalOpen}
-        items={items}
+        items={operationalItems}
         urgentIds={urgentIds}
         fetchedAt={fetchedAt}
         onUrgentIdsChange={handleUrgentIdsChange}
