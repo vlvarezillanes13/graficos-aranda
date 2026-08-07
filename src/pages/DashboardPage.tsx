@@ -46,6 +46,7 @@ interface DashboardPageProps {
   matrixSelection: MatrixSelection | null
   deliveryDatesById: Map<number, ItemDeliveryDates>
   deliveryDatesLoading: boolean
+  urgentIds: string[]
   onFiltersChange: (filters: FilterState) => void
   onFiltersReset: () => void
   onCustomFieldChange: (field: GroupField) => void
@@ -104,6 +105,7 @@ export function DashboardPage({
   matrixSelection,
   deliveryDatesById,
   deliveryDatesLoading,
+  urgentIds,
   onFiltersChange,
   onFiltersReset,
   onCustomFieldChange,
@@ -260,6 +262,7 @@ export function DashboardPage({
                       onSelect={onSelectItem}
                       deliveryDatesById={deliveryDatesById}
                       deliveryDatesLoading={deliveryDatesLoading}
+                      urgentIds={urgentIds}
                     />
                   </article>
                 )}

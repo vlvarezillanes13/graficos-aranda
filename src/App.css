@@ -1666,6 +1666,43 @@ th button {
   background: #f8fafc;
 }
 
+.clickable-row.is-urgent {
+  background: #fef2f2;
+  box-shadow: inset 3px 0 0 #ef4444;
+}
+
+.clickable-row.is-urgent:hover {
+  background: #fee2e2;
+}
+
+.ticket-id-row {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  vertical-align: middle;
+}
+
+.urgent-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.2rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .mono {
   font-family: Consolas, monospace;
   font-size: 0.88rem;
@@ -1679,10 +1716,15 @@ th button {
 .status-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.55rem;
+  justify-content: center;
+  height: 1.45rem;
+  padding: 0 0.55rem;
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .pill {

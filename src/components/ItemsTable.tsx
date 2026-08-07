@@ -22,6 +22,7 @@ interface ItemsTableProps {
   emptyMessage?: string
   deliveryDatesById?: Map<number, ItemDeliveryDates>
   deliveryDatesLoading?: boolean
+  urgentIds?: string[]
 }
 
 type SortKey =
@@ -71,11 +72,17 @@ export function ItemsTable({
   emptyMessage = 'No hay registros con los filtros actuales',
   deliveryDatesById,
   deliveryDatesLoading = false,
+  urgentIds = [],
 }: ItemsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('openedDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
+
+  const urgentIdSet = useMemo(
+    () => new Set(urgentIds.map((id) => id.trim().toUpperCase()).filter(Boolean)),
+    [urgentIds],
+  )
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
@@ -205,14 +212,26 @@ export function ItemsTable({
                 </td>
               </tr>
             ) : (
-              paginatedItems.map((item) => (
+              paginatedItems.map((item) => {
+                const isUrgent = urgentIdSet.has(
+                  item.idByProject.trim().toUpperCase(),
+                )
+
+                return (
                 <tr
                   key={item.id}
-                  className="clickable-row"
+                  className={`clickable-row${isUrgent ? ' is-urgent' : ''}`}
                   onClick={() => onSelect?.(item)}
                 >
                   <td className="mono ticket-id-cell">
-                    <CopyableTicketId value={item.idByProject} />
+                    <div className="ticket-id-row">
+                      <CopyableTicketId value={item.idByProject} />
+                      {isUrgent && (
+                        <span className="urgent-badge" title="Caso urgente">
+                          Urgente
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="subject-cell">{item.subject}</td>
                   <td>
@@ -235,7 +254,8 @@ export function ItemsTable({
                   <td>{formatTestAprobadoDate(item, deliveryDatesById)}</td>
                   <td>{formatPendienteSuspendidoDate(item, deliveryDatesById)}</td>
                 </tr>
-              ))
+                )
+              })
             )}
           </tbody>
         </table>

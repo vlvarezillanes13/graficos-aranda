@@ -290,6 +290,7 @@ export function UrgentCasesModal({
             emptyMessage="Aplica una lista de IDs para ver los casos urgentes"
             deliveryDatesById={deliveryDatesById}
             deliveryDatesLoading={deliveryDatesLoading}
+            urgentIds={urgentIds}
           />
         </div>
       </div>

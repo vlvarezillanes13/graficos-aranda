@@ -308,6 +308,7 @@ function App() {
           matrixSelection={matrixSelection}
           deliveryDatesById={deliveryDatesById}
           deliveryDatesLoading={deliveryDatesLoading}
+          urgentIds={urgentIds}
           onFiltersChange={setFilters}
           onFiltersReset={() => setFilters(DEFAULT_FILTERS)}
           onCustomFieldChange={setCustomField}
