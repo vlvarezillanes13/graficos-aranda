@@ -7,6 +7,7 @@ interface ReportingPageProps {
   fetchedAt: Date | null
   loading: boolean
   error: string | null
+  urgentIds?: string[]
 }
 
 export function ReportingPage({
@@ -14,6 +15,7 @@ export function ReportingPage({
   fetchedAt,
   loading,
   error,
+  urgentIds = [],
 }: ReportingPageProps) {
   return (
     <>
@@ -51,6 +53,7 @@ export function ReportingPage({
           <ReportingSection
             items={items}
             fetchedAt={fetchedAt}
+            urgentIds={urgentIds}
             disabled={loading}
           />
         )}

@@ -12,10 +12,21 @@ import {
 
 type ExportRow = Record<string, string>
 
+function buildUrgentIdSet(urgentIds?: string[]): Set<string> {
+  return new Set(
+    (urgentIds ?? [])
+      .map((id) => id.trim().toUpperCase())
+      .filter(Boolean),
+  )
+}
+
 function itemToExportRow(
   item: IncidentItem,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
+  urgentIdSet?: Set<string>,
 ): ExportRow {
+  const isUrgent = urgentIdSet?.has(item.idByProject.trim().toUpperCase()) ?? false
+
   return {
     'ESTADO GENERAL': item.isClosed ? 'Cerrado' : 'Abierto',
     GRUPO: item.groupName,
@@ -26,6 +37,7 @@ function itemToExportRow(
     RESPONSABLE: item.responsibleName,
     IMPACTO: item.impactName,
     URGENCIA: item.urgencyName,
+    URGENTE: isUrgent ? 'Sí' : 'No',
     PRIORIDAD: item.priorityName,
     CATEGORIA: item.categoryHierarchy,
     'SUB-CATEGORIA': item.categoryName,
@@ -44,9 +56,12 @@ function itemToExportRow(
 function createExportWorksheet(
   items: IncidentItem[],
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
+  urgentIds?: string[],
 ) {
+  const urgentIdSet = buildUrgentIdSet(urgentIds)
+
   return XLSX.utils.json_to_sheet(
-    items.map((item) => itemToExportRow(item, deliveryDatesById)),
+    items.map((item) => itemToExportRow(item, deliveryDatesById, urgentIdSet)),
   )
 }
 
@@ -54,6 +69,7 @@ export function downloadIncidentsXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
+  urgentIds?: string[],
 ): void {
   if (items.length === 0) return
 
@@ -63,17 +79,17 @@ export function downloadIncidentsXlsx(
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(items, deliveryDatesById),
+    createExportWorksheet(items, deliveryDatesById, urgentIds),
     'Todos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(openItems, deliveryDatesById),
+    createExportWorksheet(openItems, deliveryDatesById, urgentIds),
     'Abiertos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(closedItems, deliveryDatesById),
+    createExportWorksheet(closedItems, deliveryDatesById, urgentIds),
     'Cerrados',
   )
 
@@ -97,6 +113,7 @@ export function downloadUrgentCasesXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
+  urgentIds?: string[],
 ): void {
   if (items.length === 0) return
 
@@ -104,10 +121,12 @@ export function downloadUrgentCasesXlsx(
     (a, b) => b.openedDate - a.openedDate,
   )
   const workbook = XLSX.utils.book_new()
+  const idsForExport =
+    urgentIds ?? sortedItems.map((item) => item.idByProject)
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(sortedItems, deliveryDatesById),
+    createExportWorksheet(sortedItems, deliveryDatesById, idsForExport),
     'Urgentes',
   )
 

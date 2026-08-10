@@ -142,7 +142,7 @@ export function UrgentCasesModal({
     setExporting(true)
     try {
       const dates = await fetchDeliveryDatesForItems(urgentItems)
-      downloadUrgentCasesXlsx(urgentItems, fetchedAt, dates)
+      downloadUrgentCasesXlsx(urgentItems, fetchedAt, dates, urgentIds)
     } finally {
       setExporting(false)
     }

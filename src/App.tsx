@@ -349,6 +349,7 @@ function App() {
           fetchedAt={fetchedAt}
           loading={loading}
           error={error}
+          urgentIds={urgentIds}
         />
       )}
 

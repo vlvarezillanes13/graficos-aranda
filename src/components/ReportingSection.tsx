@@ -15,6 +15,7 @@ import {
 interface ReportingSectionProps {
   items: IncidentItem[]
   fetchedAt: Date | null
+  urgentIds?: string[]
   disabled?: boolean
 }
 
@@ -37,6 +38,7 @@ function getProgressLabel(progress: ReportingProgress): string {
 export function ReportingSection({
   items,
   fetchedAt,
+  urgentIds = [],
   disabled = false,
 }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportingTab>('all')
@@ -70,7 +72,7 @@ export function ReportingSection({
 
     try {
       const dates = await fetchDeliveryDatesForItems(items)
-      downloadIncidentsXlsx(items, fetchedAt, dates)
+      downloadIncidentsXlsx(items, fetchedAt, dates, urgentIds)
     } catch (exportError) {
       setError(
         exportError instanceof Error
@@ -81,7 +83,7 @@ export function ReportingSection({
       setExporting(null)
       setProgress(null)
     }
-  }, [items, fetchedAt])
+  }, [items, fetchedAt, urgentIds])
 
   const handleExportAfcResolved = useCallback(async () => {
     if (afcReportItems.length === 0 || !afcDateRangeValid) return
