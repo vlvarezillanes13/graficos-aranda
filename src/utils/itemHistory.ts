@@ -106,7 +106,19 @@ export function getHistoryCommentText(entry: HistoryEntry): string {
   return ''
 }
 
-export function shouldOfferFullHistoryComment(text: string): boolean {
+/** Raw HTML for notes that include markup (especially inline images). */
+export function getHistoryCommentHtmlSource(entry: HistoryEntry): string | null {
+  const html = entry.description?.trim()
+  if (!html) return null
+  if (/<[a-z][\s\S]*>/i.test(html)) return html
+  return null
+}
+
+export function shouldOfferFullHistoryComment(
+  text: string,
+  options?: { hasImages?: boolean },
+): boolean {
+  if (options?.hasImages) return true
   return text.length > 220
 }
 
@@ -137,7 +149,9 @@ export function getHistorySummary(entry: HistoryEntry): string {
 
   if (kind === 'note') {
     const text = getHistoryCommentText(entry)
-    return text || 'Nota sin contenido'
+    if (text) return text
+    if (getHistoryCommentHtmlSource(entry)) return 'Nota con imagen'
+    return 'Nota sin contenido'
   }
 
   if (kind === 'attachment') {

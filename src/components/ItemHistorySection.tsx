@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { IncidentItem } from '../types/incident'
 import type { HistoryEntry } from '../types/itemHistory'
 import { fetchItemHistory } from '../services/itemHistoryService'
+import {
+  descriptionHasVisualContent,
+  prepareDescriptionHtml,
+} from '../utils/descriptionHtml'
 import {
   formatHistoryTimestamp,
   formatHistoryValue,
   getAttachmentFileName,
   getHistoryActionKind,
   getHistoryActionLabel,
+  getHistoryCommentHtmlSource,
   getHistoryCommentText,
   getHistoryDetails,
   getHistorySummary,
   shouldOfferFullHistoryComment,
   sortHistoryEntries,
 } from '../utils/itemHistory'
+import { AttachmentZoomModal } from './AttachmentZoomModal'
 import { HistoryCommentModal } from './HistoryCommentModal'
 
 interface ItemHistorySectionProps {
@@ -38,24 +44,92 @@ function HistoryNoteContent({
   onOpenFull,
 }: {
   entry: HistoryEntry
-  onOpenFull: (entry: HistoryEntry, text: string) => void
+  onOpenFull: (entry: HistoryEntry, text: string, html: string | null) => void
 }) {
   const commentText = getHistoryCommentText(entry)
-  if (!commentText) return null
+  const htmlSource = getHistoryCommentHtmlSource(entry)
+  const [preparedHtml, setPreparedHtml] = useState<string | null>(null)
+  const [htmlLoading, setHtmlLoading] = useState(Boolean(htmlSource))
+  const [zoom, setZoom] = useState<{ name: string; url: string } | null>(null)
+  const revokeRef = useRef<(() => void) | null>(null)
 
-  const showOpenButton = shouldOfferFullHistoryComment(commentText)
+  useEffect(() => {
+    revokeRef.current?.()
+    revokeRef.current = null
+    setPreparedHtml(null)
+
+    if (!htmlSource) {
+      setHtmlLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setHtmlLoading(true)
+
+    void prepareDescriptionHtml(htmlSource)
+      .then((prepared) => {
+        if (cancelled) {
+          prepared.revoke()
+          return
+        }
+
+        revokeRef.current = prepared.revoke
+        setPreparedHtml(
+          descriptionHasVisualContent(prepared.html) ? prepared.html : null,
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setPreparedHtml(null)
+      })
+      .finally(() => {
+        if (!cancelled) setHtmlLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+      revokeRef.current?.()
+      revokeRef.current = null
+    }
+  }, [htmlSource, entry.id])
+
+  const hasImages = Boolean(preparedHtml && /<img\b/i.test(preparedHtml))
+  const showOpenButton = shouldOfferFullHistoryComment(commentText, {
+    hasImages,
+  })
+
+  if (!commentText && !htmlSource && !htmlLoading) return null
+
+  const handleHtmlClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (!(target instanceof HTMLImageElement) || !target.src) return
+    event.stopPropagation()
+    setZoom({
+      name: target.alt?.trim() || 'Imagen del comentario',
+      url: target.src,
+    })
+  }
 
   return (
     <div className="history-note-content">
       <div
-        className={`history-note-box ${showOpenButton ? 'history-note-preview is-expandable' : ''}`}
-        onClick={showOpenButton ? () => onOpenFull(entry, commentText) : undefined}
+        className={[
+          'history-note-box',
+          preparedHtml ? 'is-html' : '',
+          showOpenButton ? 'history-note-preview is-expandable' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onClick={
+          showOpenButton
+            ? () => onOpenFull(entry, commentText, preparedHtml)
+            : undefined
+        }
         onKeyDown={
           showOpenButton
             ? (event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  onOpenFull(entry, commentText)
+                  onOpenFull(entry, commentText, preparedHtml)
                 }
               }
             : undefined
@@ -63,16 +137,35 @@ function HistoryNoteContent({
         role={showOpenButton ? 'button' : undefined}
         tabIndex={showOpenButton ? 0 : undefined}
       >
-        {commentText}
+        {htmlLoading && (
+          <p className="history-note-loading">Cargando comentario...</p>
+        )}
+        {!htmlLoading && preparedHtml && (
+          <div
+            className="detail-description-html"
+            onClick={handleHtmlClick}
+            dangerouslySetInnerHTML={{ __html: preparedHtml }}
+          />
+        )}
+        {!htmlLoading && !preparedHtml && commentText}
       </div>
       {showOpenButton && (
         <button
           type="button"
           className="history-open-comment-button"
-          onClick={() => onOpenFull(entry, commentText)}
+          onClick={() => onOpenFull(entry, commentText, preparedHtml)}
         >
           Ver comentario completo
         </button>
+      )}
+
+      {zoom && (
+        <AttachmentZoomModal
+          name={zoom.name}
+          url={zoom.url}
+          kind="image"
+          onClose={() => setZoom(null)}
+        />
       )}
     </div>
   )
@@ -83,14 +176,16 @@ function HistoryEntryCard({
   onOpenComment,
 }: {
   entry: HistoryEntry
-  onOpenComment: (entry: HistoryEntry, text: string) => void
+  onOpenComment: (entry: HistoryEntry, text: string, html: string | null) => void
 }) {
   const [expanded, setExpanded] = useState(true)
   const kind = getHistoryActionKind(entry)
   const label = getHistoryActionLabel(entry)
   const summary = getHistorySummary(entry)
   const commentText = getHistoryCommentText(entry)
-  const showNoteContent = kind === 'note' || (kind === 'other' && commentText)
+  const htmlSource = getHistoryCommentHtmlSource(entry)
+  const showNoteContent =
+    kind === 'note' || (kind === 'other' && Boolean(commentText || htmlSource))
 
   return (
     <article className="history-entry">
@@ -160,6 +255,7 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
   const [openComment, setOpenComment] = useState<{
     title: string
     text: string
+    html: string | null
   } | null>(null)
 
   useEffect(() => {
@@ -201,10 +297,15 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
     }
   }, [item, active, loadedForItemId])
 
-  const handleOpenComment = (entry: HistoryEntry, text: string) => {
+  const handleOpenComment = (
+    entry: HistoryEntry,
+    text: string,
+    html: string | null,
+  ) => {
     setOpenComment({
       title: `${entry.authorName} · ${getHistoryActionLabel(entry)}`,
       text,
+      html,
     })
   }
 
@@ -238,6 +339,7 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
         <HistoryCommentModal
           title={openComment.title}
           text={openComment.text}
+          html={openComment.html}
           onClose={() => setOpenComment(null)}
         />
       )}

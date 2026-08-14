@@ -2377,6 +2377,16 @@ th button {
   white-space: pre-wrap;
 }
 
+.history-note-box.is-html {
+  white-space: normal;
+}
+
+.history-note-loading {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
 .history-note-content {
   display: grid;
   gap: 0.55rem;
@@ -2387,6 +2397,13 @@ th button {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   overflow: hidden;
+}
+
+.history-note-preview.is-html {
+  display: block;
+  max-height: 11rem;
+  overflow: hidden;
+  -webkit-line-clamp: unset;
 }
 
 .history-note-preview.is-expandable {
@@ -2459,6 +2476,10 @@ th button {
   line-height: 1.65;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.history-comment-body.is-html {
+  white-space: normal;
 }
 
 .history-attachment-box {
