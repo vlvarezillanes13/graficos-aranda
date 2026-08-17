@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { AppNav } from './components/AppNav'
 import { ItemDetailPanel } from './components/ItemDetailPanel'
 import { LoadingState } from './components/LoadingState'
@@ -43,6 +43,8 @@ import { useDeliveryDates } from './hooks/useDeliveryDates'
 import { useSharedUrgentCases } from './hooks/useSharedUrgentCases'
 import { clearDeliveryDatesCache } from './services/deliveryDatesService'
 import { StandbyPage } from './pages/StandbyPage'
+import { BranchSearchPage } from './pages/BranchSearchPage'
+import { navigateToRoute } from './routing/appRoute'
 import './App.css'
 
 const DEFAULT_FILTERS: FilterState = {
@@ -274,6 +276,16 @@ function App() {
 
   useIdleTimeout(handleLogout, authenticated)
 
+  const activeRoute =
+    route === 'branch-search' && !isAdmin ? 'dashboard' : route
+
+  useLayoutEffect(() => {
+    if (!authenticated) return
+    if (route === 'branch-search' && !isAdmin) {
+      navigateToRoute('dashboard')
+    }
+  }, [authenticated, route, isAdmin])
+
   if (!authReady) {
     return <LoadingState />
   }
@@ -292,7 +304,7 @@ function App() {
   return (
     <div className="app-shell">
       <AppNav
-        route={route}
+        route={activeRoute}
         onNavigate={navigate}
         username={username}
         isAdmin={isAdmin}
@@ -303,7 +315,7 @@ function App() {
         onOpenUrgent={() => setUrgentModalOpen(true)}
       />
 
-      {route === 'dashboard' ? (
+      {activeRoute === 'dashboard' ? (
         <DashboardPage
           loading={loading}
           error={error}
@@ -332,7 +344,7 @@ function App() {
           onMatrixSelect={handleMatrixSelect}
           onSelectItem={setSelectedItem}
         />
-      ) : route === 'standby' ? (
+      ) : activeRoute === 'standby' ? (
         <StandbyPage
           loading={loading}
           error={error}
@@ -343,6 +355,8 @@ function App() {
           urgentIds={urgentIds}
           onSelectItem={setSelectedItem}
         />
+      ) : activeRoute === 'branch-search' ? (
+        <BranchSearchPage />
       ) : (
         <ReportingPage
           items={operationalItems}

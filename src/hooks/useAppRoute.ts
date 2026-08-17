@@ -25,5 +25,6 @@ export function useAppRoute() {
     isDashboard: route === 'dashboard',
     isReporting: route === 'reporting',
     isStandby: route === 'standby',
+    isBranchSearch: route === 'branch-search',
   }
 }

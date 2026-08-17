@@ -29,6 +29,7 @@ import {
   handleUrgentCasesGet,
   handleUrgentCasesPost,
 } from './lib/urgentCasesHandlers.js'
+import { handleAdoBranchSearch } from './lib/adoBranchSearchHandlers.js'
 import { configureDevServerEnv } from './lib/itsmUpstream.js'
 
 function createAuthMiddleware() {
@@ -135,6 +136,11 @@ function createAuthMiddleware() {
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) void handleUrgentCasesPost(req, res)
       })
+      return
+    }
+
+    if (pathname === '/api/ado-branch-search' && req.method === 'GET') {
+      void handleAdoBranchSearch(req, res, requestUrl)
       return
     }
 

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { AppRoute } from '../routing/appRoute'
 import {
   formatAppBuildTooltip,
@@ -21,7 +22,8 @@ const NAV_ITEMS: Array<{
   label: string
   hint: string
   icon: string
-  modifier: 'dashboard' | 'reporting' | 'standby'
+  modifier: 'dashboard' | 'reporting' | 'standby' | 'admin'
+  adminOnly?: boolean
 }> = [
   {
     route: 'dashboard',
@@ -44,6 +46,14 @@ const NAV_ITEMS: Array<{
     icon: '⬇',
     modifier: 'reporting',
   },
+  {
+    route: 'branch-search',
+    label: 'Buscar ramas',
+    hint: 'Azure DevOps · Admin',
+    icon: '⎇',
+    modifier: 'admin',
+    adminOnly: true,
+  },
 ]
 
 export function AppNav({
@@ -57,6 +67,11 @@ export function AppNav({
   onRefresh,
   onOpenUrgent,
 }: AppNavProps) {
+  const visibleItems = useMemo(
+    () => NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin),
+    [isAdmin],
+  )
+
   return (
     <nav className="app-nav" aria-label="Navegación principal">
       <div className="app-nav-inner">
@@ -75,8 +90,17 @@ export function AppNav({
           </span>
         </div>
 
-        <div className="app-nav-tabs" role="tablist" aria-label="Secciones">
-          {NAV_ITEMS.map((item) => {
+        <div
+          className={[
+            'app-nav-tabs',
+            visibleItems.length > 3 ? 'has-admin' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          role="tablist"
+          aria-label="Secciones"
+        >
+          {visibleItems.map((item) => {
             const isActive = route === item.route
 
             return (
