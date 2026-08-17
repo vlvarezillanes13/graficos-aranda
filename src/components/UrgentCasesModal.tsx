@@ -46,6 +46,7 @@ export function UrgentCasesModal({
 }: UrgentCasesModalProps) {
   const [inputValue, setInputValue] = useState('')
   const [inputError, setInputError] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [saving, setSaving] = useState(false)
   const dirtyRef = useRef(false)
@@ -63,6 +64,7 @@ export function UrgentCasesModal({
     if (!wasOpenRef.current) {
       setInputValue(formatUrgentCaseIds(urgentIds))
       setInputError(null)
+      setExportError(null)
       dirtyRef.current = false
       wasOpenRef.current = true
       return
@@ -140,9 +142,17 @@ export function UrgentCasesModal({
     if (urgentItems.length === 0) return
 
     setExporting(true)
+    setExportError(null)
+
     try {
       const dates = await fetchDeliveryDatesForItems(urgentItems)
       await downloadUrgentCasesXlsx(urgentItems, fetchedAt, dates, urgentIds)
+    } catch (error) {
+      setExportError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo generar el XLSX de casos urgentes',
+      )
     } finally {
       setExporting(false)
     }
@@ -225,6 +235,12 @@ export function UrgentCasesModal({
         </header>
 
         <div className="urgent-modal-body">
+          {exportError && (
+            <p className="urgent-input-error" role="alert">
+              {exportError}
+            </p>
+          )}
+
           {connectionError && (
             <div className="alert info urgent-missing-alert" role="status">
               <p>{connectionError}</p>

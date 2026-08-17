@@ -1,11 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { requireSessionFromAuthHeader } from '../lib/itsmApi.js'
-import {
-  getUrgentCasesState,
-  updateUrgentCasesState,
-} from '../lib/urgentCasesStore.js'
+import { requireSessionFromAuthHeader } from './itsmApi.js'
+import { getUrgentCasesState, updateUrgentCasesState } from './urgentCasesStore.js'
 
-export default async function handler(
+export async function handleVercelUrgentCases(
   req: VercelRequest,
   res: VercelResponse,
 ): Promise<void> {
@@ -22,7 +19,9 @@ export default async function handler(
 
   if (req.method === 'POST') {
     try {
-      const urgentIds = Array.isArray(req.body?.urgentIds) ? req.body.urgentIds : []
+      const urgentIds = Array.isArray(req.body?.urgentIds)
+        ? req.body.urgentIds
+        : []
       const usuario =
         typeof req.body?.usuario === 'string' ? req.body.usuario : user.username
 
