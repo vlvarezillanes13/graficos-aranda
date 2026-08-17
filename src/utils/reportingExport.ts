@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import type { WorkSheet } from 'xlsx'
 import {
   AFC_CONSULTORIA_GROUP,
   AFC_MANTENCION_GROUP,
@@ -16,6 +16,12 @@ import {
   formatHistoryTransitionValue,
   type HistoryTransition,
 } from './historyTransitions'
+
+type XlsxModule = typeof import('xlsx')
+
+function loadXlsx() {
+  return import('xlsx')
+}
 
 const HISTORY_FETCH_CONCURRENCY = 5
 const AFC_DATE_TIME_FORMAT = 'dd/mm/yyyy hh:mm'
@@ -287,7 +293,8 @@ function getDateColumnIndexes(maxTransitions: number): number[] {
 }
 
 function applyWorksheetDateFormats(
-  worksheet: XLSX.WorkSheet,
+  XLSX: XlsxModule,
+  worksheet: WorkSheet,
   maxTransitions: number,
 ): void {
   if (!worksheet['!ref']) return
@@ -348,7 +355,8 @@ function rowToOrderedValues(
 }
 
 function applyTotalHoursFormulas(
-  worksheet: XLSX.WorkSheet,
+  XLSX: XlsxModule,
+  worksheet: WorkSheet,
   rowData: AfcReportRowData[],
   maxTransitions: number,
 ): void {
@@ -373,7 +381,7 @@ function applyTotalHoursFormulas(
   })
 }
 
-function createHolidaysWorksheet(): XLSX.WorkSheet {
+function createHolidaysWorksheet(XLSX: XlsxModule): WorkSheet {
   const rows: (string | number)[][] = [['Fecha', 'Feriado']]
 
   for (const holiday of CHILEAN_NATIONAL_HOLIDAYS) {
@@ -395,17 +403,18 @@ function createHolidaysWorksheet(): XLSX.WorkSheet {
 }
 
 function createAfcReportWorksheet(
+  XLSX: XlsxModule,
   rowData: AfcReportRowData[],
   maxTransitions: number,
-): XLSX.WorkSheet {
+): WorkSheet {
   const headers = buildAfcReportHeaders(maxTransitions)
   const worksheet = XLSX.utils.aoa_to_sheet([
     headers,
     ...rowData.map((data) => rowToOrderedValues(data.row, headers)),
   ])
 
-  applyTotalHoursFormulas(worksheet, rowData, maxTransitions)
-  applyWorksheetDateFormats(worksheet, maxTransitions)
+  applyTotalHoursFormulas(XLSX, worksheet, rowData, maxTransitions)
+  applyWorksheetDateFormats(XLSX, worksheet, maxTransitions)
 
   const columnWidths = [{ wch: 16 }, { wch: 22 }, { wch: 32 }]
   for (let index = 0; index < maxTransitions; index += 1) {
@@ -452,13 +461,18 @@ export async function downloadAfcResolvedReportXlsx(
       String(a.row['N° TICKET']).localeCompare(String(b.row['N° TICKET'])),
     )
 
+  const XLSX = await loadXlsx()
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(
     workbook,
-    createAfcReportWorksheet(sortedRowData, maxTransitions),
+    createAfcReportWorksheet(XLSX, sortedRowData, maxTransitions),
     'Historial AFC',
   )
-  XLSX.utils.book_append_sheet(workbook, createHolidaysWorksheet(), 'Feriados')
+  XLSX.utils.book_append_sheet(
+    workbook,
+    createHolidaysWorksheet(XLSX),
+    'Feriados',
+  )
 
   const dateStamp = (fetchedAt ?? new Date()).toISOString().slice(0, 10)
   XLSX.writeFile(

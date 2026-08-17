@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
 import { formatDate } from './aggregations'
@@ -11,6 +10,11 @@ import {
 } from './deliveryDates'
 
 type ExportRow = Record<string, string>
+type XlsxModule = typeof import('xlsx')
+
+function loadXlsx() {
+  return import('xlsx')
+}
 
 function buildUrgentIdSet(urgentIds?: string[]): Set<string> {
   return new Set(
@@ -54,6 +58,7 @@ function itemToExportRow(
 }
 
 function createExportWorksheet(
+  XLSX: XlsxModule,
   items: IncidentItem[],
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
@@ -65,31 +70,32 @@ function createExportWorksheet(
   )
 }
 
-export function downloadIncidentsXlsx(
+export async function downloadIncidentsXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
-): void {
+): Promise<void> {
   if (items.length === 0) return
 
+  const XLSX = await loadXlsx()
   const openItems = items.filter((item) => !item.isClosed)
   const closedItems = items.filter((item) => item.isClosed)
   const workbook = XLSX.utils.book_new()
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(items, deliveryDatesById, urgentIds),
+    createExportWorksheet(XLSX, items, deliveryDatesById, urgentIds),
     'Todos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(openItems, deliveryDatesById, urgentIds),
+    createExportWorksheet(XLSX, openItems, deliveryDatesById, urgentIds),
     'Abiertos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(closedItems, deliveryDatesById, urgentIds),
+    createExportWorksheet(XLSX, closedItems, deliveryDatesById, urgentIds),
     'Cerrados',
   )
 
@@ -109,14 +115,15 @@ export function getExportCounts(items: IncidentItem[]) {
   }
 }
 
-export function downloadUrgentCasesXlsx(
+export async function downloadUrgentCasesXlsx(
   items: IncidentItem[],
   fetchedAt?: Date | null,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
-): void {
+): Promise<void> {
   if (items.length === 0) return
 
+  const XLSX = await loadXlsx()
   const sortedItems = [...items].sort(
     (a, b) => b.openedDate - a.openedDate,
   )
@@ -126,7 +133,7 @@ export function downloadUrgentCasesXlsx(
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(sortedItems, deliveryDatesById, idsForExport),
+    createExportWorksheet(XLSX, sortedItems, deliveryDatesById, idsForExport),
     'Urgentes',
   )
 

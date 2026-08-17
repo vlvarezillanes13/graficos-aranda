@@ -1,12 +1,18 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { AppNav } from './components/AppNav'
 import { ItemDetailPanel } from './components/ItemDetailPanel'
 import { LoadingState } from './components/LoadingState'
 import { LoginPage } from './components/LoginPage'
 import { UrgentCasesModal } from './components/UrgentCasesModal'
 import { ItsmTokenModal } from './components/ItsmTokenModal'
-import { DashboardPage } from './pages/DashboardPage'
-import { ReportingPage } from './pages/ReportingPage'
 import {
   getSessionUsername,
   getSessionIsAdmin,
@@ -42,10 +48,29 @@ import { useBackgroundRefresh } from './hooks/useBackgroundRefresh'
 import { useDeliveryDates } from './hooks/useDeliveryDates'
 import { useSharedUrgentCases } from './hooks/useSharedUrgentCases'
 import { clearDeliveryDatesCache } from './services/deliveryDatesService'
-import { StandbyPage } from './pages/StandbyPage'
-import { BranchSearchPage } from './pages/BranchSearchPage'
 import { navigateToRoute } from './routing/appRoute'
 import './App.css'
+
+const DashboardPage = lazy(() =>
+  import('./pages/DashboardPage').then((module) => ({
+    default: module.DashboardPage,
+  })),
+)
+const ReportingPage = lazy(() =>
+  import('./pages/ReportingPage').then((module) => ({
+    default: module.ReportingPage,
+  })),
+)
+const StandbyPage = lazy(() =>
+  import('./pages/StandbyPage').then((module) => ({
+    default: module.StandbyPage,
+  })),
+)
+const BranchSearchPage = lazy(() =>
+  import('./pages/BranchSearchPage').then((module) => ({
+    default: module.BranchSearchPage,
+  })),
+)
 
 const DEFAULT_FILTERS: FilterState = {
   search: '',
@@ -315,57 +340,61 @@ function App() {
         onOpenUrgent={() => setUrgentModalOpen(true)}
       />
 
-      {activeRoute === 'dashboard' ? (
-        <DashboardPage
-          loading={loading}
-          error={error}
-          fetchedAt={fetchedAt}
-          totalItems={operationalItems.length}
-          summary={summary}
-          filters={filters}
-          itemTypes={itemTypes}
-          groups={groups}
-          states={states}
-          responsibles={responsibles}
-          filteredItems={filteredItems}
-          items={operationalItems}
-          customField={customField}
-          chartType={chartType}
-          customGrouped={customGrouped}
-          responsibleStateMatrix={responsibleStateMatrix}
-          matrixSelection={matrixSelection}
-          deliveryDatesById={deliveryDatesById}
-          deliveryDatesLoading={deliveryDatesLoading}
-          urgentIds={urgentIds}
-          onFiltersChange={setFilters}
-          onFiltersReset={() => setFilters(DEFAULT_FILTERS)}
-          onCustomFieldChange={setCustomField}
-          onChartTypeChange={setChartType}
-          onMatrixSelect={handleMatrixSelect}
-          onSelectItem={setSelectedItem}
-        />
-      ) : activeRoute === 'standby' ? (
-        <StandbyPage
-          loading={loading}
-          error={error}
-          fetchedAt={fetchedAt}
-          items={standbyItems}
-          deliveryDatesById={deliveryDatesById}
-          deliveryDatesLoading={deliveryDatesLoading}
-          urgentIds={urgentIds}
-          onSelectItem={setSelectedItem}
-        />
-      ) : activeRoute === 'branch-search' ? (
-        <BranchSearchPage />
-      ) : (
-        <ReportingPage
-          items={operationalItems}
-          fetchedAt={fetchedAt}
-          loading={loading}
-          error={error}
-          urgentIds={urgentIds}
-        />
-      )}
+      <Suspense
+        fallback={<LoadingState message="Cargando vista..." hint={null} />}
+      >
+        {activeRoute === 'dashboard' ? (
+          <DashboardPage
+            loading={loading}
+            error={error}
+            fetchedAt={fetchedAt}
+            totalItems={operationalItems.length}
+            summary={summary}
+            filters={filters}
+            itemTypes={itemTypes}
+            groups={groups}
+            states={states}
+            responsibles={responsibles}
+            filteredItems={filteredItems}
+            items={operationalItems}
+            customField={customField}
+            chartType={chartType}
+            customGrouped={customGrouped}
+            responsibleStateMatrix={responsibleStateMatrix}
+            matrixSelection={matrixSelection}
+            deliveryDatesById={deliveryDatesById}
+            deliveryDatesLoading={deliveryDatesLoading}
+            urgentIds={urgentIds}
+            onFiltersChange={setFilters}
+            onFiltersReset={() => setFilters(DEFAULT_FILTERS)}
+            onCustomFieldChange={setCustomField}
+            onChartTypeChange={setChartType}
+            onMatrixSelect={handleMatrixSelect}
+            onSelectItem={setSelectedItem}
+          />
+        ) : activeRoute === 'standby' ? (
+          <StandbyPage
+            loading={loading}
+            error={error}
+            fetchedAt={fetchedAt}
+            items={standbyItems}
+            deliveryDatesById={deliveryDatesById}
+            deliveryDatesLoading={deliveryDatesLoading}
+            urgentIds={urgentIds}
+            onSelectItem={setSelectedItem}
+          />
+        ) : activeRoute === 'branch-search' ? (
+          <BranchSearchPage />
+        ) : (
+          <ReportingPage
+            items={operationalItems}
+            fetchedAt={fetchedAt}
+            loading={loading}
+            error={error}
+            urgentIds={urgentIds}
+          />
+        )}
+      </Suspense>
 
       <UrgentCasesModal
         open={urgentModalOpen}

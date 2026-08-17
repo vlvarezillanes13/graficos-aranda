@@ -1,5 +1,4 @@
-import { useCallback, useState } from 'react'
-import { BarCountChart, PieCountChart } from '../components/CountChart'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import { FilterBar } from '../components/FilterBar'
 import { ItemsTable } from '../components/ItemsTable'
 import { LoadingState } from '../components/LoadingState'
@@ -12,6 +11,17 @@ import type {
   FilterState,
   MatrixSelection,
 } from '../utils/aggregations'
+
+const BarCountChart = lazy(() =>
+  import('../components/CountChart').then((module) => ({
+    default: module.BarCountChart,
+  })),
+)
+const PieCountChart = lazy(() =>
+  import('../components/CountChart').then((module) => ({
+    default: module.PieCountChart,
+  })),
+)
 
 const GROUP_OPTIONS: { value: GroupField; label: string }[] = [
   { value: 'responsibleName', label: 'Responsable' },
@@ -319,20 +329,28 @@ export function DashboardPage({
                       </div>
                     </div>
 
-                    {chartType === 'bar' ? (
-                      <BarCountChart
-                        title={`Cantidad por ${customLabel}`}
-                        data={customGrouped}
-                        color="#6366f1"
-                        maxItems={15}
-                      />
-                    ) : (
-                      <PieCountChart
-                        title={`Distribución por ${customLabel}`}
-                        data={customGrouped}
-                        maxItems={8}
-                      />
-                    )}
+                    <Suspense
+                      fallback={
+                        <article className="chart-card">
+                          <p className="empty-chart">Cargando gráfico...</p>
+                        </article>
+                      }
+                    >
+                      {chartType === 'bar' ? (
+                        <BarCountChart
+                          title={`Cantidad por ${customLabel}`}
+                          data={customGrouped}
+                          color="#6366f1"
+                          maxItems={15}
+                        />
+                      ) : (
+                        <PieCountChart
+                          title={`Distribución por ${customLabel}`}
+                          data={customGrouped}
+                          maxItems={8}
+                        />
+                      )}
+                    </Suspense>
 
                     <div className="table-wrapper compact-table">
                       <table>

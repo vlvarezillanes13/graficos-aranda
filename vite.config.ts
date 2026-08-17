@@ -193,5 +193,31 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 4173,
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const moduleId = id.replace(/\\/g, '/')
+            if (!moduleId.includes('/node_modules/')) return
+
+            if (moduleId.includes('/xlsx/')) return 'xlsx'
+            if (
+              moduleId.includes('/recharts/') ||
+              moduleId.includes('/victory-vendor/') ||
+              /\/d3-[^/]+\//.test(moduleId)
+            ) {
+              return 'recharts'
+            }
+            if (
+              moduleId.includes('/react-dom/') ||
+              moduleId.includes('/node_modules/react/') ||
+              moduleId.includes('/scheduler/')
+            ) {
+              return 'react-vendor'
+            }
+          },
+        },
+      },
+    },
   }
 })

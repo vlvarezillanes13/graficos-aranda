@@ -72,7 +72,7 @@ export function ReportingSection({
 
     try {
       const dates = await fetchDeliveryDatesForItems(items)
-      downloadIncidentsXlsx(items, fetchedAt, dates, urgentIds)
+      await downloadIncidentsXlsx(items, fetchedAt, dates, urgentIds)
     } catch (exportError) {
       setError(
         exportError instanceof Error
