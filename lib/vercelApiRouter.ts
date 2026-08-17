@@ -21,25 +21,25 @@ import {
 } from './vercelItsmHandlers.js'
 import { handleVercelUrgentCases } from './vercelUrgentHandlers.js'
 
+function firstQueryValue(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value.filter(Boolean).join('/')
+  return typeof value === 'string' ? value : ''
+}
+
 function getPathname(req: VercelRequest): string {
-  const segments = Array.isArray(req.query.path)
-    ? req.query.path.filter((segment): segment is string => typeof segment === 'string')
-    : typeof req.query.path === 'string'
-      ? req.query.path.split('/')
-      : []
-  const fromCatchAll = segments.filter(Boolean)
-
-  if (fromCatchAll.length > 0) {
-    return `/api/${fromCatchAll.join('/')}`
-  }
-
   try {
     const pathname = new URL(req.url ?? '/', 'http://localhost').pathname
       .replace(/\/+$/, '')
-    if (pathname.startsWith('/api/')) return pathname
-    if (pathname.startsWith('/') && pathname !== '/') return `/api${pathname}`
+    if (pathname.startsWith('/api/') && pathname !== '/api/index') {
+      return pathname
+    }
   } catch {
     // Ignore malformed URLs and fall through.
+  }
+
+  const routed = firstQueryValue(req.query.route)
+  if (routed) {
+    return `/api/${routed.replace(/^\/+|\/+$/g, '')}`
   }
 
   return '/api'
