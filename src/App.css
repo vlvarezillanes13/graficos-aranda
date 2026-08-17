@@ -559,6 +559,77 @@
   color: #64748b;
 }
 
+.admin-search-warning {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+
+.admin-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.admin-type-badge.is-proyecto {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.admin-type-badge.is-componente {
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.admin-type-badge.is-repositorio {
+  background: #ecfeff;
+  color: #0f766e;
+}
+
+.admin-type-badge.is-carpeta {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.admin-type-badge.is-archivo {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.admin-branch-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  max-width: 28rem;
+}
+
+.admin-branch-chip {
+  display: inline-block;
+  padding: 0.12rem 0.4rem;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.78rem;
+}
+
+.admin-branch-more {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+  align-self: center;
+}
+
 .admin-results-table-wrap {
   overflow-x: auto;
   border: 1px solid #e2e8f0;

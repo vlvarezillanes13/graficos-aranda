@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   isAzureDevOpsConfigured,
   searchAzureDevOpsBranches,
+  searchAzureDevOpsItems,
 } from './azureDevOps.js'
 import { requireAdminSessionFromAuthHeader } from './itsmApi.js'
 
@@ -58,6 +59,62 @@ export async function handleAdoBranchSearch(
 
   try {
     const result = await searchAzureDevOpsBranches(query)
+    sendJson(response, 200, result)
+  } catch (error) {
+    sendJson(response, 502, {
+      error:
+        error instanceof Error
+          ? error.message
+          : 'No se pudo consultar Azure DevOps',
+    })
+  }
+}
+
+export async function handleAdoItemSearch(
+  request: IncomingMessage,
+  response: ServerResponse,
+  requestUrl: URL,
+): Promise<void> {
+  const session = await requireAdminSessionFromAuthHeader(
+    request.headers.authorization,
+  )
+  if (!session) {
+    sendJson(response, 403, {
+      error:
+        'Se requiere acceso administrador para buscar proyectos y componentes',
+    })
+    return
+  }
+
+  if (!isAzureDevOpsConfigured()) {
+    sendJson(response, 503, {
+      error:
+        'Azure DevOps no está configurado. Define AZURE_DEVOPS_PAT en el servidor.',
+    })
+    return
+  }
+
+  const query = (requestUrl.searchParams.get('q') ?? '').trim()
+  const branchFilter = (
+    requestUrl.searchParams.get('rama') ??
+    requestUrl.searchParams.get('branch') ??
+    ''
+  ).trim()
+
+  if (query.length < 2) {
+    sendJson(response, 400, {
+      error: 'Indica al menos 2 caracteres para buscar el proyecto o componente',
+    })
+    return
+  }
+
+  if (query.length > 120 || branchFilter.length > 120) {
+    sendJson(response, 400, { error: 'La búsqueda es demasiado larga' })
+    return
+  }
+
+  try {
+    const result = await searchAzureDevOpsItems(query, branchFilter)
     sendJson(response, 200, result)
   } catch (error) {
     sendJson(response, 502, {

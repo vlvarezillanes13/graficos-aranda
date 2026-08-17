@@ -48,8 +48,8 @@ const NAV_ITEMS: Array<{
   },
   {
     route: 'branch-search',
-    label: 'Buscar ramas',
-    hint: 'Azure DevOps · Admin',
+    label: 'Azure DevOps',
+    hint: 'Ramas y componentes',
     icon: '⎇',
     modifier: 'admin',
     adminOnly: true,
