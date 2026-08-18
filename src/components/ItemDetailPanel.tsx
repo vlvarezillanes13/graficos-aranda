@@ -78,7 +78,15 @@ export function ItemDetailPanel({
   }, [item?.id, canAssignResponsible])
 
   useEffect(() => {
-    if (!item) return
+    if (!item) {
+      setFiles([])
+      setFilesError(null)
+      setPreview(null)
+      setPreviewError(null)
+      setZoomOpen(false)
+      setFilesLoading(false)
+      return
+    }
 
     let cancelled = false
     setFiles([])
@@ -106,10 +114,17 @@ export function ItemDetailPanel({
     return () => {
       cancelled = true
     }
-  }, [item])
+  }, [item?.id, item?.itemType])
 
   useEffect(() => {
-    if (!item) return
+    if (!item) {
+      setDescriptionHtml(null)
+      setDescriptionZoom(null)
+      setDescriptionLoading(false)
+      revokeDescriptionUrls.current?.()
+      revokeDescriptionUrls.current = null
+      return
+    }
 
     let cancelled = false
     setDescriptionHtml(null)
@@ -149,7 +164,7 @@ export function ItemDetailPanel({
       revokeDescriptionUrls.current?.()
       revokeDescriptionUrls.current = null
     }
-  }, [item])
+  }, [item?.id])
 
   useEffect(() => {
     return () => {

@@ -17,6 +17,7 @@ export function ReportingPage({
   error,
   urgentIds = [],
 }: ReportingPageProps) {
+  const showFullLoader = loading && items.length === 0 && !fetchedAt
   return (
     <>
       <header className="hero hero-reporting">
@@ -27,20 +28,21 @@ export function ReportingPage({
             Descarga XLSX con datos actuales e historial de estados para
             Consultoría AFC.
           </p>
-          {fetchedAt && !loading && (
+          {fetchedAt && (
             <p className="last-update">
               Última actualización:{' '}
               {new Intl.DateTimeFormat('es-CL', {
                 dateStyle: 'medium',
                 timeStyle: 'short',
               }).format(fetchedAt)}
+              {loading ? ' · Actualizando...' : ''}
             </p>
           )}
         </div>
       </header>
 
       <main className="app reporting-page">
-        {loading && <LoadingState />}
+        {showFullLoader && <LoadingState />}
 
         {error && (
           <div className="alert error" role="alert">
@@ -49,7 +51,7 @@ export function ReportingPage({
           </div>
         )}
 
-        {!loading && !error && (
+        {!showFullLoader && !error && (
           <ReportingSection
             items={items}
             fetchedAt={fetchedAt}

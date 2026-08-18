@@ -97,6 +97,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [itsmTokenModalOpen, setItsmTokenModalOpen] = useState(false)
   const [itsmTokenMessage, setItsmTokenMessage] = useState<string | null>(null)
+  const [keepBranchSearch, setKeepBranchSearch] = useState(false)
 
   const username = getSessionUsername()
 
@@ -311,6 +312,12 @@ function App() {
     }
   }, [authenticated, route, isAdmin])
 
+  useEffect(() => {
+    if (activeRoute === 'branch-search' && isAdmin) {
+      setKeepBranchSearch(true)
+    }
+  }, [activeRoute, isAdmin])
+
   if (!authReady) {
     return <LoadingState />
   }
@@ -383,9 +390,7 @@ function App() {
             urgentIds={urgentIds}
             onSelectItem={setSelectedItem}
           />
-        ) : activeRoute === 'branch-search' ? (
-          <BranchSearchPage />
-        ) : (
+        ) : activeRoute === 'reporting' ? (
           <ReportingPage
             items={operationalItems}
             fetchedAt={fetchedAt}
@@ -393,8 +398,22 @@ function App() {
             error={error}
             urgentIds={urgentIds}
           />
-        )}
+        ) : null}
       </Suspense>
+
+      {isAdmin && (activeRoute === 'branch-search' || keepBranchSearch) && (
+        <Suspense
+          fallback={
+            activeRoute === 'branch-search' ? (
+              <LoadingState message="Cargando vista..." hint={null} />
+            ) : null
+          }
+        >
+          <div hidden={activeRoute !== 'branch-search'}>
+            <BranchSearchPage />
+          </div>
+        </Suspense>
+      )}
 
       <UrgentCasesModal
         open={urgentModalOpen}

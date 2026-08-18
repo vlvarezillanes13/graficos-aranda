@@ -43,6 +43,8 @@ export function StandbyPage({
   onSelectItem,
 }: StandbyPageProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
+  const hasLoadedData = Boolean(fetchedAt) || items.length > 0
+  const showFullLoader = loading && !hasLoadedData
 
   const filteredItems = useMemo(
     () => filterItems(items, filters),
@@ -72,20 +74,21 @@ export function StandbyPage({
             Listado aparte de tickets con categoría Standby. No se incluyen en
             el panel operativo ni en el reporte completo.
           </p>
-          {fetchedAt && !loading && (
+          {fetchedAt && (
             <p className="last-update">
               Última actualización:{' '}
               {new Intl.DateTimeFormat('es-CL', {
                 dateStyle: 'medium',
                 timeStyle: 'short',
               }).format(fetchedAt)}
+              {loading ? ' · Actualizando...' : ''}
             </p>
           )}
         </div>
       </header>
 
       <main className="app standby-page">
-        {loading && <LoadingState />}
+        {showFullLoader && <LoadingState />}
 
         {error && (
           <div className="alert error" role="alert">
@@ -94,7 +97,7 @@ export function StandbyPage({
           </div>
         )}
 
-        {!loading && !error && (
+        {!showFullLoader && !error && (
           <div className="dashboard-sections">
             <SummaryCards {...summary} totalItems={items.length} />
 

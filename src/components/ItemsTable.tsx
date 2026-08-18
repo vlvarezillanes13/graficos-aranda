@@ -84,6 +84,15 @@ export function ItemsTable({
     [urgentIds],
   )
 
+  const itemsIdentity = useMemo(
+    () =>
+      items
+        .map((item) => item.id)
+        .sort((a, b) => a - b)
+        .join(','),
+    [items],
+  )
+
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
       const aVal = getSortValue(a, sortKey, deliveryDatesById)
@@ -106,7 +115,7 @@ export function ItemsTable({
 
   useEffect(() => {
     setPage(1)
-  }, [items, sortKey, sortDir, pageSize])
+  }, [itemsIdentity, sortKey, sortDir, pageSize])
 
   useEffect(() => {
     if (page > totalPages) {

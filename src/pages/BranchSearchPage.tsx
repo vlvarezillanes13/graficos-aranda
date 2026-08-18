@@ -49,8 +49,6 @@ export function BranchSearchPage() {
         setItemResult(data)
       }
     } catch (searchError) {
-      if (mode === 'branches') setBranchResult(null)
-      else setItemResult(null)
       setError(
         searchError instanceof Error
           ? searchError.message
@@ -200,11 +198,11 @@ export function BranchSearchPage() {
               </p>
             )}
 
-            {!loading && !isItems && branchResult && (
+            {!isItems && branchResult && (
               <BranchSearchResults result={branchResult} />
             )}
 
-            {!loading && isItems && itemResult && (
+            {isItems && itemResult && (
               <ItemSearchResults result={itemResult} />
             )}
           </div>

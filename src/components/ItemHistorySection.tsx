@@ -295,7 +295,7 @@ export function ItemHistorySection({ item, active }: ItemHistorySectionProps) {
     return () => {
       cancelled = true
     }
-  }, [item, active, loadedForItemId])
+  }, [item.id, active, loadedForItemId])
 
   const handleOpenComment = (
     entry: HistoryEntry,

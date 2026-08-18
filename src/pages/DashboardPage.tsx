@@ -124,6 +124,8 @@ export function DashboardPage({
   onSelectItem,
 }: DashboardPageProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>('table')
+  const hasLoadedData = Boolean(fetchedAt) || items.length > 0
+  const showFullLoader = loading && !hasLoadedData
 
   const customLabel =
     GROUP_OPTIONS.find((option) => option.value === customField)?.label ??
@@ -158,20 +160,21 @@ export function DashboardPage({
           <p className="subtitle">
             Monitorea el progreso y la distribución por equipos.
           </p>
-          {fetchedAt && !loading && (
+          {fetchedAt && (
             <p className="last-update">
               Última actualización:{' '}
               {new Intl.DateTimeFormat('es-CL', {
                 dateStyle: 'medium',
                 timeStyle: 'short',
               }).format(fetchedAt)}
+              {loading ? ' · Actualizando...' : ''}
             </p>
           )}
         </div>
       </header>
 
       <main className="app">
-        {loading && <LoadingState />}
+        {showFullLoader && <LoadingState />}
 
         {error && (
           <div className="alert error" role="alert">
@@ -180,7 +183,7 @@ export function DashboardPage({
           </div>
         )}
 
-        {!loading && !error && (
+        {!showFullLoader && !error && (
           <div className="dashboard-sections">
             <SummaryCards {...summary} totalItems={totalItems} />
 
