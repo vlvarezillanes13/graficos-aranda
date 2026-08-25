@@ -673,6 +673,11 @@
   text-decoration: underline;
 }
 
+.admin-search-results .table-pagination {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+}
+
 .reporting-panel-body > .reporting-error {
   margin-top: 0.85rem;
 }

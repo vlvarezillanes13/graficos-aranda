@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   searchAzureDevOpsBranches,
   searchAzureDevOpsItems,
@@ -11,12 +11,53 @@ import {
 
 type SearchMode = 'branches' | 'items'
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
+
 const ITEM_TIPO_LABEL: Record<ItemSearchTipo, string> = {
   proyecto: 'Proyecto',
   componente: 'Componente',
   repositorio: 'Repositorio',
   carpeta: 'Carpeta',
   archivo: 'Archivo',
+}
+
+function useTablePagination<T>(rows: T[], resetKey: string) {
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+
+  useEffect(() => {
+    setPage(1)
+  }, [resetKey])
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return rows.slice(start, start + pageSize)
+  }, [rows, currentPage, pageSize])
+
+  const rangeStart =
+    rows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const rangeEnd = Math.min(currentPage * pageSize, rows.length)
+
+  return {
+    pagedRows,
+    pageSize,
+    setPageSize,
+    currentPage,
+    totalPages,
+    setPage,
+    rangeStart,
+    rangeEnd,
+    total: rows.length,
+  }
 }
 
 export function BranchSearchPage() {
@@ -218,6 +259,7 @@ function BranchSearchResults({ result }: { result: BranchSearchResult }) {
   const repositoriesScanned = result.repositoriesScanned ?? 0
   const organization = result.organization || 'DA-AFP'
   const query = result.query || ''
+  const pagination = useTablePagination(results, query)
 
   return (
     <div className="admin-search-results">
@@ -235,26 +277,29 @@ function BranchSearchResults({ result }: { result: BranchSearchResult }) {
           No se encontró ninguna rama que contenga “{query}”.
         </p>
       ) : (
-        <div className="admin-results-table-wrap">
-          <table className="admin-results-table">
-            <thead>
-              <tr>
-                <th>Proyecto</th>
-                <th>Repositorio</th>
-                <th>Rama</th>
-                <th>URL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((hit) => (
-                <BranchResultRow
-                  key={`${hit.proyecto}-${hit.repositorio}-${hit.rama}`}
-                  hit={hit}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="admin-results-table-wrap">
+            <table className="admin-results-table">
+              <thead>
+                <tr>
+                  <th>Proyecto</th>
+                  <th>Repositorio</th>
+                  <th>Rama</th>
+                  <th>URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagination.pagedRows.map((hit) => (
+                  <BranchResultRow
+                    key={`${hit.proyecto}-${hit.repositorio}-${hit.rama}`}
+                    hit={hit}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ResultsPagination {...pagination} noun="coincidencias" />
+        </>
       )}
     </div>
   )
@@ -285,6 +330,7 @@ function ItemSearchResults({ result }: { result: ItemSearchResult }) {
   const organization = result.organization || 'DA-AFP'
   const query = result.query || ''
   const branchFilter = result.branchFilter || ''
+  const pagination = useTablePagination(results, `${query}|${branchFilter}`)
 
   return (
     <div className="admin-search-results">
@@ -318,29 +364,119 @@ function ItemSearchResults({ result }: { result: ItemSearchResult }) {
           No se encontró ningún proyecto o componente que contenga “{query}”.
         </p>
       ) : (
-        <div className="admin-results-table-wrap">
-          <table className="admin-results-table">
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Proyecto ADO</th>
-                <th>Repositorio</th>
-                <th>Ruta</th>
-                <th>Ramas</th>
-                <th>URL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((hit) => (
-                <ItemResultRow
-                  key={`${hit.tipo}-${hit.proyecto}-${hit.repositorio}-${hit.path}`}
-                  hit={hit}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="admin-results-table-wrap">
+            <table className="admin-results-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Proyecto ADO</th>
+                  <th>Repositorio</th>
+                  <th>Ruta</th>
+                  <th>Ramas</th>
+                  <th>URL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagination.pagedRows.map((hit) => (
+                  <ItemResultRow
+                    key={`${hit.tipo}-${hit.proyecto}-${hit.repositorio}-${hit.path}`}
+                    hit={hit}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ResultsPagination {...pagination} noun="coincidencias" />
+        </>
       )}
+    </div>
+  )
+}
+
+function ResultsPagination({
+  pageSize,
+  setPageSize,
+  currentPage,
+  totalPages,
+  setPage,
+  rangeStart,
+  rangeEnd,
+  total,
+  noun,
+}: {
+  pageSize: number
+  setPageSize: (size: number) => void
+  currentPage: number
+  totalPages: number
+  setPage: (page: number | ((value: number) => number)) => void
+  rangeStart: number
+  rangeEnd: number
+  total: number
+  noun: string
+}) {
+  if (total === 0) return null
+
+  return (
+    <div className="table-pagination">
+      <p>
+        Mostrando <strong>{rangeStart}</strong>–<strong>{rangeEnd}</strong> de{' '}
+        <strong>{total}</strong> {noun}
+      </p>
+
+      <div className="table-pagination-controls">
+        <label className="page-size-field">
+          <span>Por página</span>
+          <select
+            value={pageSize}
+            onChange={(event) => setPageSize(Number(event.target.value))}
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="page-buttons">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setPage(1)}
+            disabled={currentPage === 1}
+          >
+            «
+          </button>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setPage((value) => value - 1)}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </button>
+          <span className="page-indicator">
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setPage((value) => value + 1)}
+            disabled={currentPage === totalPages}
+          >
+            Siguiente
+          </button>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            »
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

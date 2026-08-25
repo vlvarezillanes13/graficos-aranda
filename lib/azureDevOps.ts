@@ -212,6 +212,11 @@ function branchNamesFromCodeVersions(
   return names
 }
 
+function branchMatchesFilter(branchName: string, filterLower: string): boolean {
+  if (!filterLower) return true
+  return stripBranchRef(branchName).toLowerCase().includes(filterLower)
+}
+
 function basename(path: string): string {
   const trimmed = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const parts = trimmed.split('/').filter(Boolean)
@@ -585,6 +590,7 @@ async function searchCodeIndex(
   organization: string,
   pat: string,
   query: string,
+  branchFilterLower = '',
 ): Promise<RawItemHit[]> {
   const compact = query.replace(/\s+/g, '')
   const sanitized = query.replace(/"/g, '')
@@ -632,7 +638,11 @@ async function searchCodeIndex(
     const folder =
       !looksLikeProjectFile(basename(matchPath)) ||
       matchPath !== normalizePath(path)
-    const versionBranches = branchNamesFromCodeVersions(item.versions)
+    const versionBranches = branchNamesFromCodeVersions(item.versions).filter(
+      (name) => branchMatchesFilter(name, branchFilterLower),
+    )
+    if (branchFilterLower && versionBranches.length === 0) continue
+
     const branches = versionBranches.length > 0 ? versionBranches : ['']
 
     for (const branchName of branches) {
@@ -795,7 +805,12 @@ export async function searchAzureDevOpsItems(
   const defaultBranchByRepo = new Map<string, string>()
 
   try {
-    const codeHits = await searchCodeIndex(organization, pat, query)
+    const codeHits = await searchCodeIndex(
+      organization,
+      pat,
+      query,
+      branchFilterLower,
+    )
     rawHits.push(...codeHits)
   } catch {
     // Code Search may be disabled; git tree scan still runs.
@@ -817,7 +832,7 @@ export async function searchAzureDevOpsItems(
   const targets: ScanTarget[] = []
 
   for (const project of projects) {
-    if (nameMatches(project.name, query)) {
+    if (nameMatches(project.name, query) && !branchFilterLower) {
       rawHits.push({
         tipo: 'proyecto',
         proyecto: project.name,
@@ -849,24 +864,16 @@ export async function searchAzureDevOpsItems(
         defaultBranchByRepo.set(`${project.name}|${repo.name}`, defaultBranch)
       }
 
-      if (nameMatches(repo.name, query)) {
-        rawHits.push({
-          tipo: 'repositorio',
-          proyecto: project.name,
-          repositorio: repo.name,
-          path: '',
-          rama: defaultBranch,
-          url: buildRepoUrl(organization, project.name, repo.name),
-        })
-      }
-
       let branchNames: string[] = []
       try {
+        const refsFilter = branchFilter.trim()
+          ? `&filterContains=${encodeURIComponent(branchFilter.trim())}`
+          : ''
         const refsResponse = await adoFetch<{
           value: Array<{ name: string }>
         }>(
           `${baseUrl}/${project.id}/_apis/git/repositories/${repo.id}/refs` +
-            `?filter=heads/&$top=1000&api-version=${API_VERSION}`,
+            `?filter=heads/${refsFilter}&$top=1000&api-version=${API_VERSION}`,
           pat,
         )
         branchNames = (refsResponse.value ?? [])
@@ -878,8 +885,31 @@ export async function searchAzureDevOpsItems(
 
       if (branchFilterLower) {
         branchNames = branchNames.filter((name) =>
-          name.toLowerCase().includes(branchFilterLower),
+          branchMatchesFilter(name, branchFilterLower),
         )
+      }
+
+      if (nameMatches(repo.name, query)) {
+        const ramaForRepo = branchFilterLower
+          ? (branchNames[0] ?? '')
+          : defaultBranch
+        if (ramaForRepo || !branchFilterLower) {
+          rawHits.push({
+            tipo: 'repositorio',
+            proyecto: project.name,
+            repositorio: repo.name,
+            path: '',
+            rama: ramaForRepo,
+            url: ramaForRepo
+              ? buildBranchUrl(
+                  organization,
+                  project.name,
+                  repo.name,
+                  ramaForRepo,
+                )
+              : buildRepoUrl(organization, project.name, repo.name),
+          })
+        }
       }
 
       for (const branchName of branchNames) {
@@ -895,10 +925,14 @@ export async function searchAzureDevOpsItems(
 
   targets.sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
 
-  for (const hit of rawHits) {
-    if (hit.rama || !hit.repositorio) continue
-    const fallback = defaultBranchByRepo.get(`${hit.proyecto}|${hit.repositorio}`)
-    if (fallback) hit.rama = fallback
+  if (!branchFilterLower) {
+    for (const hit of rawHits) {
+      if (hit.rama || !hit.repositorio) continue
+      const fallback = defaultBranchByRepo.get(
+        `${hit.proyecto}|${hit.repositorio}`,
+      )
+      if (fallback) hit.rama = fallback
+    }
   }
 
   const scannedHits = await mapWithConcurrency(
@@ -934,8 +968,12 @@ export async function searchAzureDevOpsItems(
     rawHits.push(...outcome.hits)
   }
 
+  const scopedHits = branchFilterLower
+    ? rawHits.filter((hit) => branchMatchesFilter(hit.rama, branchFilterLower))
+    : rawHits
+
   return {
-    results: groupItemHits(collapseNestedHits(rawHits)),
+    results: groupItemHits(collapseNestedHits(scopedHits)),
     projectsScanned: projects.length,
     repositoriesScanned,
     branchesScanned,
