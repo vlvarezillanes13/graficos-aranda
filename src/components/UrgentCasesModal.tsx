@@ -17,6 +17,9 @@ interface UrgentCasesModalProps {
   urgentIds: string[]
   fetchedAt?: Date | null
   onUrgentIdsChange: (ids: string[]) => void | Promise<void>
+  isAdmin?: boolean
+  updatesLocked?: boolean
+  onEditLockChange?: (locked: boolean) => void | Promise<void>
   connected?: boolean
   realtimeEnabled?: boolean
   connectionError?: string
@@ -34,6 +37,9 @@ export function UrgentCasesModal({
   urgentIds,
   fetchedAt,
   onUrgentIdsChange,
+  isAdmin = false,
+  updatesLocked = true,
+  onEditLockChange,
   connected = false,
   realtimeEnabled = false,
   connectionError = '',
@@ -49,6 +55,7 @@ export function UrgentCasesModal({
   const [exportError, setExportError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [togglingLock, setTogglingLock] = useState(false)
   const dirtyRef = useRef(false)
   const wasOpenRef = useRef(false)
 
@@ -114,7 +121,28 @@ export function UrgentCasesModal({
     [onUrgentIdsChange],
   )
 
+  const handleToggleLock = useCallback(async () => {
+    if (!isAdmin || !onEditLockChange) return
+
+    setTogglingLock(true)
+    setInputError(null)
+
+    try {
+      await onEditLockChange(!updatesLocked)
+      dirtyRef.current = false
+    } catch (error) {
+      setInputError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible cambiar el bloqueo',
+      )
+    } finally {
+      setTogglingLock(false)
+    }
+  }, [isAdmin, onEditLockChange, updatesLocked])
+
   const handleApplyFromScreen = () => {
+    if (updatesLocked) return
     const ids = parseUrgentCaseIds(inputValue)
     if (ids.length === 0) {
       setInputError('Ingresa al menos un ID (ej: IM-8892122; RF-8947234)')
@@ -124,6 +152,7 @@ export function UrgentCasesModal({
   }
 
   const handleClear = () => {
+    if (updatesLocked) return
     setInputValue('')
     void applyIds([])
   }
@@ -183,8 +212,9 @@ export function UrgentCasesModal({
           <div className="urgent-modal-heading">
             <h2 id="urgent-modal-title">Casos urgentes</h2>
             <p>
-              Lista compartida entre todos los usuarios conectados. Al aplicar,
-              todos ven la misma selección.
+              Lista compartida entre todos los usuarios conectados. La
+              actualización queda bloqueada hasta que un administrador la
+              habilite.
             </p>
             <p className="urgent-realtime-status">
               Estado:{' '}
@@ -196,6 +226,18 @@ export function UrgentCasesModal({
                 }
               >
                 {connectionLabel}
+              </strong>
+              {' · '}
+              <strong
+                className={
+                  updatesLocked
+                    ? 'urgent-lock-status--locked'
+                    : 'urgent-lock-status--open'
+                }
+              >
+                {updatesLocked
+                  ? 'Actualización bloqueada'
+                  : 'Actualización habilitada'}
               </strong>
               {updatedBy && updatedAt && (
                 <>
@@ -248,9 +290,34 @@ export function UrgentCasesModal({
           )}
 
           <div className="urgent-input-panel">
-            <label className="urgent-input-label" htmlFor="urgent-cases-input">
-              Lista de casos urgentes
-            </label>
+            <div className="urgent-input-panel-header">
+              <label className="urgent-input-label" htmlFor="urgent-cases-input">
+                Lista de casos urgentes
+              </label>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={
+                    updatesLocked ? 'reporting-button' : 'ghost-button'
+                  }
+                  onClick={() => void handleToggleLock()}
+                  disabled={togglingLock || saving}
+                >
+                  {togglingLock
+                    ? 'Cambiando bloqueo...'
+                    : updatesLocked
+                      ? 'Permitir actualización'
+                      : 'Bloquear actualización'}
+                </button>
+              )}
+            </div>
+            {updatesLocked && (
+              <p className="urgent-lock-hint">
+                {isAdmin
+                  ? 'La lista está bloqueada. Habilítala para que cualquiera pueda actualizarla, o vuelve a bloquearla cuando terminen.'
+                  : 'Un administrador debe habilitar la actualización para poder cambiar esta lista.'}
+              </p>
+            )}
             <textarea
               id="urgent-cases-input"
               className="urgent-input"
@@ -262,7 +329,7 @@ export function UrgentCasesModal({
               }}
               placeholder="IM-8892122; IM-8970477; RF-8947234"
               rows={4}
-              disabled={saving}
+              disabled={saving || updatesLocked}
             />
             {inputError && (
               <p className="urgent-input-error" role="alert">
@@ -274,7 +341,12 @@ export function UrgentCasesModal({
                 type="button"
                 className="ghost-button"
                 onClick={handleApplyFromScreen}
-                disabled={saving}
+                disabled={saving || updatesLocked || togglingLock}
+                title={
+                  updatesLocked
+                    ? 'La actualización está bloqueada por un administrador'
+                    : undefined
+                }
               >
                 {saving ? 'Aplicando para todos...' : 'Aplicar para todos'}
               </button>
@@ -282,7 +354,16 @@ export function UrgentCasesModal({
                 type="button"
                 className="ghost-button"
                 onClick={handleClear}
-                disabled={saving || (!inputValue && urgentIds.length === 0)}
+                disabled={
+                  saving ||
+                  updatesLocked ||
+                  (!inputValue && urgentIds.length === 0)
+                }
+                title={
+                  updatesLocked
+                    ? 'La actualización está bloqueada por un administrador'
+                    : undefined
+                }
               >
                 Limpiar
               </button>

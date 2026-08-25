@@ -2,7 +2,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { requireSessionFromAuthHeader } from './itsmApi.js'
 import {
   getUrgentCasesState,
+  setUrgentCasesEditLock,
   updateUrgentCasesState,
+  UrgentCasesEditLockedError,
 } from './urgentCasesStore.js'
 
 function sendJson(
@@ -29,6 +31,7 @@ async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
 interface UrgentCasesBody {
   urgentIds?: string[]
   usuario?: string
+  edicionBloqueada?: boolean
 }
 
 export async function handleUrgentCasesGet(
@@ -56,12 +59,38 @@ export async function handleUrgentCasesPost(
 
   try {
     const body = await readJsonBody<UrgentCasesBody>(request)
+
+    if (typeof body.edicionBloqueada === 'boolean') {
+      if (!user.isAdmin) {
+        sendJson(response, 403, {
+          error:
+            'Solo un administrador puede bloquear o desbloquear la actualización',
+        })
+        return
+      }
+
+      sendJson(
+        response,
+        200,
+        await setUrgentCasesEditLock(
+          body.edicionBloqueada,
+          body.usuario ?? user.username,
+        ),
+      )
+      return
+    }
+
     const state = await updateUrgentCasesState(
       body.urgentIds ?? [],
       body.usuario ?? user.username,
     )
     sendJson(response, 200, state)
   } catch (error) {
+    if (error instanceof UrgentCasesEditLockedError) {
+      sendJson(response, 403, { error: error.message })
+      return
+    }
+
     const message =
       error instanceof Error ? error.message : 'No se pudo actualizar urgentes'
     sendJson(response, 400, { error: message })

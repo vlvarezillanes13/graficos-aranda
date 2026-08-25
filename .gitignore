@@ -30,3 +30,7 @@ backend/.env
 # Scripts locales (no subir)
 *.ps1
 buscar-rama*.ps1
+inventario-afc-excel.mjs
+
+# Persistencia local de API (urgentes, credenciales)
+.data

@@ -1464,6 +1464,33 @@
   background: #fffafb;
 }
 
+.urgent-input-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.urgent-input-panel-header .urgent-input-label {
+  margin-bottom: 0;
+}
+
+.urgent-lock-hint {
+  margin: 0 0 0.65rem;
+  color: #9a3412;
+  font-size: 0.85rem;
+}
+
+.urgent-lock-status--locked {
+  color: #b91c1c;
+}
+
+.urgent-lock-status--open {
+  color: #15803d;
+}
+
 .urgent-input-label {
   display: block;
   margin-bottom: 0.45rem;
@@ -1488,6 +1515,12 @@
   outline: 2px solid #fca5a5;
   outline-offset: 1px;
   border-color: #f87171;
+}
+
+.urgent-input:disabled {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
 .urgent-input-error {

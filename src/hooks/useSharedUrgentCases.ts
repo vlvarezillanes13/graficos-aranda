@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchSharedUrgentState,
   saveSharedUrgentState,
+  setSharedUrgentEditLock,
   URGENT_CASES_POLL_MS,
+  UrgentCasesLockedError,
   type SharedUrgentState,
 } from '../services/urgentCasesService'
 import { readUrgentCaseIds, writeUrgentCaseIds } from '../utils/urgentCases'
@@ -12,6 +14,7 @@ const estadoInicial: SharedUrgentState = {
   actualizadoPor: null,
   actualizadoEn: null,
   version: 0,
+  edicionBloqueada: true,
 }
 
 function normalizeIds(ids: string[]): string[] {
@@ -50,7 +53,8 @@ function applySharedState(
     next.version === previous.version &&
     sameIds(next.urgentIds, previous.urgentIds) &&
     next.actualizadoPor === previous.actualizadoPor &&
-    next.actualizadoEn === previous.actualizadoEn
+    next.actualizadoEn === previous.actualizadoEn &&
+    next.edicionBloqueada === previous.edicionBloqueada
   ) {
     return previous
   }
@@ -141,6 +145,15 @@ export function useSharedUrgentCases(
         setConnected(true)
         setConnectionError('')
       } catch (error) {
+        if (error instanceof UrgentCasesLockedError) {
+          setState((current) =>
+            current.edicionBloqueada
+              ? current
+              : { ...current, edicionBloqueada: true },
+          )
+          throw error
+        }
+
         writeUrgentCaseIds(normalized)
         setState((current) => ({
           ...current,
@@ -157,13 +170,34 @@ export function useSharedUrgentCases(
     [username],
   )
 
+  const setEditLock = useCallback(
+    async (locked: boolean) => {
+      savingRef.current = true
+
+      try {
+        const next = await setSharedUrgentEditLock(
+          locked,
+          username ?? 'Usuario',
+        )
+        setState((previous) => applySharedState(previous, next))
+        setConnected(true)
+        setConnectionError('')
+      } finally {
+        savingRef.current = false
+      }
+    },
+    [username],
+  )
+
   return {
     urgentIds: state.urgentIds,
     updatedBy: state.actualizadoPor,
     updatedAt: state.actualizadoEn,
+    updatesLocked: state.edicionBloqueada,
     connected,
     realtimeEnabled: true,
     connectionError,
     updateUrgentIds,
+    setEditLock,
   }
 }

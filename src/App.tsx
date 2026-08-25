@@ -105,10 +105,12 @@ function App() {
     urgentIds,
     updatedBy: urgentUpdatedBy,
     updatedAt: urgentUpdatedAt,
+    updatesLocked: urgentUpdatesLocked,
     connected: urgentRealtimeConnected,
     realtimeEnabled: urgentRealtimeEnabled,
     connectionError: urgentConnectionError,
     updateUrgentIds,
+    setEditLock: setUrgentEditLock,
   } = useSharedUrgentCases(username, authenticated)
 
   const applyFetchResult = useCallback((result: FetchResult) => {
@@ -277,6 +279,13 @@ function App() {
     [updateUrgentIds],
   )
 
+  const handleUrgentEditLockChange = useCallback(
+    async (locked: boolean) => {
+      await setUrgentEditLock(locked)
+    },
+    [setUrgentEditLock],
+  )
+
   const handleMatrixSelect = useCallback((selection: MatrixSelection) => {
     setFilters((current) => {
       const active = filtersToMatrixSelection(current)
@@ -421,6 +430,9 @@ function App() {
         urgentIds={urgentIds}
         fetchedAt={fetchedAt}
         onUrgentIdsChange={handleUrgentIdsChange}
+        isAdmin={isAdmin}
+        updatesLocked={urgentUpdatesLocked}
+        onEditLockChange={handleUrgentEditLockChange}
         connected={urgentRealtimeConnected}
         realtimeEnabled={urgentRealtimeEnabled}
         connectionError={urgentConnectionError}

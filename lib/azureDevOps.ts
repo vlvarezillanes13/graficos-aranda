@@ -832,7 +832,8 @@ export async function searchAzureDevOpsItems(
   const targets: ScanTarget[] = []
 
   for (const project of projects) {
-    if (nameMatches(project.name, query) && !branchFilterLower) {
+    const projectNameMatches = nameMatches(project.name, query)
+    if (projectNameMatches && !branchFilterLower) {
       rawHits.push({
         tipo: 'proyecto',
         proyecto: project.name,
@@ -855,6 +856,8 @@ export async function searchAzureDevOpsItems(
     }
 
     repositoriesScanned += repositories.length
+
+    let matchingProjectBranch = ''
 
     for (const repo of repositories) {
       const defaultBranch = repo.defaultBranch
@@ -887,6 +890,9 @@ export async function searchAzureDevOpsItems(
         branchNames = branchNames.filter((name) =>
           branchMatchesFilter(name, branchFilterLower),
         )
+        if (!matchingProjectBranch && branchNames[0]) {
+          matchingProjectBranch = branchNames[0]
+        }
       }
 
       if (nameMatches(repo.name, query)) {
@@ -920,6 +926,17 @@ export async function searchAzureDevOpsItems(
           isDefault: Boolean(defaultBranch) && branchName === defaultBranch,
         })
       }
+    }
+
+    if (projectNameMatches && branchFilterLower && matchingProjectBranch) {
+      rawHits.push({
+        tipo: 'proyecto',
+        proyecto: project.name,
+        repositorio: '',
+        path: '',
+        rama: matchingProjectBranch,
+        url: buildProjectUrl(organization, project.name),
+      })
     }
   }
 

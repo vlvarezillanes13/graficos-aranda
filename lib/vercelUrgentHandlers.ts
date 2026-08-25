@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireSessionFromAuthHeader } from './itsmApi.js'
-import { getUrgentCasesState, updateUrgentCasesState } from './urgentCasesStore.js'
+import {
+  getUrgentCasesState,
+  setUrgentCasesEditLock,
+  updateUrgentCasesState,
+  UrgentCasesEditLockedError,
+} from './urgentCasesStore.js'
 
 export async function handleVercelUrgentCases(
   req: VercelRequest,
@@ -19,14 +24,35 @@ export async function handleVercelUrgentCases(
 
   if (req.method === 'POST') {
     try {
-      const urgentIds = Array.isArray(req.body?.urgentIds)
-        ? req.body.urgentIds
-        : []
       const usuario =
         typeof req.body?.usuario === 'string' ? req.body.usuario : user.username
 
+      if (typeof req.body?.edicionBloqueada === 'boolean') {
+        if (!user.isAdmin) {
+          res.status(403).json({
+            error:
+              'Solo un administrador puede bloquear o desbloquear la actualización',
+          })
+          return
+        }
+
+        res
+          .status(200)
+          .json(await setUrgentCasesEditLock(req.body.edicionBloqueada, usuario))
+        return
+      }
+
+      const urgentIds = Array.isArray(req.body?.urgentIds)
+        ? req.body.urgentIds
+        : []
+
       res.status(200).json(await updateUrgentCasesState(urgentIds, usuario))
     } catch (error) {
+      if (error instanceof UrgentCasesEditLockedError) {
+        res.status(403).json({ error: error.message })
+        return
+      }
+
       const message =
         error instanceof Error ? error.message : 'No se pudo actualizar urgentes'
       res.status(400).json({ error: message })
