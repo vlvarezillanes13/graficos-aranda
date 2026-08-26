@@ -1,4 +1,9 @@
 import { readStorageJson, writeStorageJson } from './serverStorage.js'
+import {
+  hasUrgentCasesSessionGrant,
+  revokeAllUrgentCasesGrants,
+  UrgentCasesSessionLockedError,
+} from './urgentCasesGrants.js'
 
 const STORAGE_KEY = 'graficos:urgent-cases'
 
@@ -26,6 +31,8 @@ export class UrgentCasesEditLockedError extends Error {
     this.name = 'UrgentCasesEditLockedError'
   }
 }
+
+export { UrgentCasesSessionLockedError } from './urgentCasesGrants.js'
 
 function isEditLocked(value: unknown): boolean {
   return value !== false
@@ -65,10 +72,15 @@ export async function getUrgentCasesState(): Promise<UrgentCasesState> {
 export async function updateUrgentCasesState(
   urgentIds: unknown,
   usuario: string,
+  sessionToken?: string | null,
 ): Promise<UrgentCasesState> {
   const current = await getUrgentCasesState()
   if (current.edicionBloqueada) {
     throw new UrgentCasesEditLockedError()
+  }
+
+  if (!(await hasUrgentCasesSessionGrant(sessionToken))) {
+    throw new UrgentCasesSessionLockedError()
   }
 
   const next: UrgentCasesState = {
@@ -88,14 +100,18 @@ export async function setUrgentCasesEditLock(
   usuario: string,
 ): Promise<UrgentCasesState> {
   const current = await getUrgentCasesState()
+  const locked = edicionBloqueada === true
   const next: UrgentCasesState = {
     ...current,
-    edicionBloqueada: edicionBloqueada === true,
+    edicionBloqueada: locked,
     actualizadoPor: usuario.trim() || 'Usuario',
     actualizadoEn: new Date().toISOString(),
     version: current.version + 1,
   }
 
   await writeStorageJson(STORAGE_KEY, next)
+  if (locked) {
+    await revokeAllUrgentCasesGrants()
+  }
   return next
 }

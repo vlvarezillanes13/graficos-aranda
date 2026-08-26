@@ -106,11 +106,15 @@ function App() {
     updatedBy: urgentUpdatedBy,
     updatedAt: urgentUpdatedAt,
     updatesLocked: urgentUpdatesLocked,
+    keyConfigured: urgentKeyConfigured,
     connected: urgentRealtimeConnected,
     realtimeEnabled: urgentRealtimeEnabled,
     connectionError: urgentConnectionError,
     updateUrgentIds,
     setEditLock: setUrgentEditLock,
+    setUnlockKey: setUrgentUnlockKey,
+    unlockSession: unlockUrgentSession,
+    releaseSession: releaseUrgentSession,
   } = useSharedUrgentCases(username, authenticated)
 
   const applyFetchResult = useCallback((result: FetchResult) => {
@@ -286,6 +290,24 @@ function App() {
     [setUrgentEditLock],
   )
 
+  const handleUrgentUnlockKeyChange = useCallback(
+    async (claveHash: string) => {
+      await setUrgentUnlockKey(claveHash)
+    },
+    [setUrgentUnlockKey],
+  )
+
+  const handleUrgentSessionUnlock = useCallback(
+    async (claveHash: string) => {
+      await unlockUrgentSession(claveHash)
+    },
+    [unlockUrgentSession],
+  )
+
+  const handleUrgentSessionRelease = useCallback(async () => {
+    await releaseUrgentSession()
+  }, [releaseUrgentSession])
+
   const handleMatrixSelect = useCallback((selection: MatrixSelection) => {
     setFilters((current) => {
       const active = filtersToMatrixSelection(current)
@@ -432,7 +454,11 @@ function App() {
         onUrgentIdsChange={handleUrgentIdsChange}
         isAdmin={isAdmin}
         updatesLocked={urgentUpdatesLocked}
+        keyConfigured={urgentKeyConfigured}
         onEditLockChange={handleUrgentEditLockChange}
+        onSetUnlockKey={handleUrgentUnlockKeyChange}
+        onUnlockSession={handleUrgentSessionUnlock}
+        onReleaseSession={handleUrgentSessionRelease}
         connected={urgentRealtimeConnected}
         realtimeEnabled={urgentRealtimeEnabled}
         connectionError={urgentConnectionError}

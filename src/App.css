@@ -1477,10 +1477,34 @@
   margin-bottom: 0;
 }
 
-.urgent-lock-hint {
-  margin: 0 0 0.65rem;
-  color: #9a3412;
-  font-size: 0.85rem;
+.urgent-lock-hint.is-open {
+  color: #166534;
+}
+
+.urgent-key-form {
+  margin: 0 0 0.75rem;
+}
+
+.urgent-key-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.urgent-key-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.95rem;
+}
+
+.urgent-key-input:focus {
+  outline: 2px solid #fca5a5;
+  outline-offset: 1px;
+  border-color: #f87171;
 }
 
 .urgent-lock-status--locked {

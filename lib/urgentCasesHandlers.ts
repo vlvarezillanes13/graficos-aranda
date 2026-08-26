@@ -1,10 +1,19 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { extractBearerToken } from './auth.js'
 import { requireSessionFromAuthHeader } from './itsmApi.js'
+import {
+  hasUrgentCasesUnlockKey,
+  revokeUrgentCasesSessionGrant,
+  setUrgentCasesUnlockKey,
+  unlockUrgentCasesSession,
+  UrgentCasesKeyError,
+} from './urgentCasesGrants.js'
 import {
   getUrgentCasesState,
   setUrgentCasesEditLock,
   updateUrgentCasesState,
   UrgentCasesEditLockedError,
+  UrgentCasesSessionLockedError,
 } from './urgentCasesStore.js'
 
 function sendJson(
@@ -32,6 +41,19 @@ interface UrgentCasesBody {
   urgentIds?: string[]
   usuario?: string
   edicionBloqueada?: boolean
+  accion?: string
+  clave?: string
+}
+
+function lockStatus(error: unknown): number | null {
+  if (
+    error instanceof UrgentCasesEditLockedError ||
+    error instanceof UrgentCasesSessionLockedError ||
+    error instanceof UrgentCasesKeyError
+  ) {
+    return 403
+  }
+  return null
 }
 
 export async function handleUrgentCasesGet(
@@ -44,7 +66,10 @@ export async function handleUrgentCasesGet(
     return
   }
 
-  sendJson(response, 200, await getUrgentCasesState())
+  sendJson(response, 200, {
+    ...(await getUrgentCasesState()),
+    claveConfigurada: await hasUrgentCasesUnlockKey(),
+  })
 }
 
 export async function handleUrgentCasesPost(
@@ -57,8 +82,54 @@ export async function handleUrgentCasesPost(
     return
   }
 
+  const sessionToken = extractBearerToken(request.headers.authorization)
+
   try {
     const body = await readJsonBody<UrgentCasesBody>(request)
+
+    if (body.accion === 'definir-clave') {
+      if (!user.isAdmin) {
+        sendJson(response, 403, {
+          error: 'Solo un administrador puede definir la clave de urgentes',
+        })
+        return
+      }
+
+      await setUrgentCasesUnlockKey(
+        typeof body.clave === 'string' ? body.clave : '',
+        body.usuario ?? user.username,
+      )
+      sendJson(response, 200, {
+        ok: true,
+        claveConfigurada: true,
+      })
+      return
+    }
+
+    if (body.accion === 'desbloquear-sesion') {
+      const state = await getUrgentCasesState()
+      if (state.edicionBloqueada) {
+        sendJson(response, 403, {
+          error:
+            'Un administrador debe habilitar la actualización antes de usar la clave',
+        })
+        return
+      }
+
+      await unlockUrgentCasesSession(
+        sessionToken,
+        user.username,
+        typeof body.clave === 'string' ? body.clave : '',
+      )
+      sendJson(response, 200, { ok: true, desbloqueadoEnEquipo: true })
+      return
+    }
+
+    if (body.accion === 'cerrar-sesion-edicion') {
+      await revokeUrgentCasesSessionGrant(sessionToken)
+      sendJson(response, 200, { ok: true })
+      return
+    }
 
     if (typeof body.edicionBloqueada === 'boolean') {
       if (!user.isAdmin) {
@@ -83,11 +154,15 @@ export async function handleUrgentCasesPost(
     const state = await updateUrgentCasesState(
       body.urgentIds ?? [],
       body.usuario ?? user.username,
+      sessionToken,
     )
     sendJson(response, 200, state)
   } catch (error) {
-    if (error instanceof UrgentCasesEditLockedError) {
-      sendJson(response, 403, { error: error.message })
+    const status = lockStatus(error)
+    if (status !== null) {
+      sendJson(response, status, {
+        error: error instanceof Error ? error.message : 'No autorizado',
+      })
       return
     }
 

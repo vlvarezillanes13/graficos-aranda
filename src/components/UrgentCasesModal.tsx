@@ -9,6 +9,7 @@ import {
   parseUrgentCaseIds,
 } from '../utils/urgentCases'
 import { fetchDeliveryDatesForItems } from '../services/deliveryDatesService'
+import { sha256Hex } from '../utils/crypto'
 import { ItemsTable } from './ItemsTable'
 
 interface UrgentCasesModalProps {
@@ -19,7 +20,11 @@ interface UrgentCasesModalProps {
   onUrgentIdsChange: (ids: string[]) => void | Promise<void>
   isAdmin?: boolean
   updatesLocked?: boolean
+  keyConfigured?: boolean
   onEditLockChange?: (locked: boolean) => void | Promise<void>
+  onSetUnlockKey?: (claveHash: string) => void | Promise<void>
+  onUnlockSession?: (claveHash: string) => void | Promise<void>
+  onReleaseSession?: () => void | Promise<void>
   connected?: boolean
   realtimeEnabled?: boolean
   connectionError?: string
@@ -39,7 +44,11 @@ export function UrgentCasesModal({
   onUrgentIdsChange,
   isAdmin = false,
   updatesLocked = true,
+  keyConfigured = false,
   onEditLockChange,
+  onSetUnlockKey,
+  onUnlockSession,
+  onReleaseSession,
   connected = false,
   realtimeEnabled = false,
   connectionError = '',
@@ -56,8 +65,14 @@ export function UrgentCasesModal({
   const [exporting, setExporting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [togglingLock, setTogglingLock] = useState(false)
+  const [unlockKey, setUnlockKey] = useState('')
+  const [sessionUnlocked, setSessionUnlocked] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [newUnlockKey, setNewUnlockKey] = useState('')
+  const [savingKey, setSavingKey] = useState(false)
   const dirtyRef = useRef(false)
   const wasOpenRef = useRef(false)
+  const sessionHadModalRef = useRef(false)
 
   // Solo hidratar al abrir, o si llega un cambio remoto y el usuario no está editando.
   // El poll cada 5s no debe borrar lo que se está escribiendo.
@@ -81,6 +96,26 @@ export function UrgentCasesModal({
       setInputValue(formatUrgentCaseIds(urgentIds))
     }
   }, [open, urgentIds, saving])
+
+  useEffect(() => {
+    if (open) {
+      sessionHadModalRef.current = true
+      return
+    }
+
+    setSessionUnlocked(false)
+    setUnlockKey('')
+    setNewUnlockKey('')
+    if (!sessionHadModalRef.current) return
+    sessionHadModalRef.current = false
+    void onReleaseSession?.()
+  }, [open, onReleaseSession])
+
+  useEffect(() => {
+    if (!updatesLocked) return
+    setSessionUnlocked(false)
+    setUnlockKey('')
+  }, [updatesLocked])
 
   useEffect(() => {
     if (!open) return
@@ -129,6 +164,10 @@ export function UrgentCasesModal({
 
     try {
       await onEditLockChange(!updatesLocked)
+      if (!updatesLocked) {
+        setSessionUnlocked(false)
+        setUnlockKey('')
+      }
       dirtyRef.current = false
     } catch (error) {
       setInputError(
@@ -141,8 +180,63 @@ export function UrgentCasesModal({
     }
   }, [isAdmin, onEditLockChange, updatesLocked])
 
+  const canEdit = !updatesLocked && sessionUnlocked
+
+  const handleUnlockThisDevice = async () => {
+    if (updatesLocked || !onUnlockSession) return
+    const trimmed = unlockKey.trim()
+    if (!trimmed) {
+      setInputError('Ingresa la clave para desbloquear este equipo')
+      return
+    }
+
+    setUnlocking(true)
+    setInputError(null)
+
+    try {
+      await onUnlockSession(await sha256Hex(trimmed))
+      setSessionUnlocked(true)
+      setUnlockKey('')
+    } catch (error) {
+      setSessionUnlocked(false)
+      setInputError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible desbloquear este equipo',
+      )
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
+  const handleSaveUnlockKey = async () => {
+    if (!isAdmin || !onSetUnlockKey) return
+    const trimmed = newUnlockKey.trim()
+    if (trimmed.length < 6) {
+      setInputError('La clave debe tener al menos 6 caracteres')
+      return
+    }
+
+    setSavingKey(true)
+    setInputError(null)
+
+    try {
+      await onSetUnlockKey(await sha256Hex(trimmed))
+      setNewUnlockKey('')
+      setSessionUnlocked(false)
+    } catch (error) {
+      setInputError(
+        error instanceof Error
+          ? error.message
+          : 'No fue posible guardar la clave en KV',
+      )
+    } finally {
+      setSavingKey(false)
+    }
+  }
+
   const handleApplyFromScreen = () => {
-    if (updatesLocked) return
+    if (!canEdit) return
     const ids = parseUrgentCaseIds(inputValue)
     if (ids.length === 0) {
       setInputError('Ingresa al menos un ID (ej: IM-8892122; RF-8947234)')
@@ -152,7 +246,7 @@ export function UrgentCasesModal({
   }
 
   const handleClear = () => {
-    if (updatesLocked) return
+    if (!canEdit) return
     setInputValue('')
     void applyIds([])
   }
@@ -212,9 +306,10 @@ export function UrgentCasesModal({
           <div className="urgent-modal-heading">
             <h2 id="urgent-modal-title">Casos urgentes</h2>
             <p>
-              Lista compartida entre todos los usuarios conectados. La
-              actualización queda bloqueada hasta que un administrador la
-              habilite.
+              Lista compartida entre todos los usuarios. Un administrador
+              habilita la actualización y, en cada equipo, hay que ingresar la
+              clave. El permiso vale solo en este equipo mientras el modal
+              esté abierto.
             </p>
             <p className="urgent-realtime-status">
               Estado:{' '}
@@ -230,14 +325,16 @@ export function UrgentCasesModal({
               {' · '}
               <strong
                 className={
-                  updatesLocked
-                    ? 'urgent-lock-status--locked'
-                    : 'urgent-lock-status--open'
+                  canEdit
+                    ? 'urgent-lock-status--open'
+                    : 'urgent-lock-status--locked'
                 }
               >
                 {updatesLocked
                   ? 'Actualización bloqueada'
-                  : 'Actualización habilitada'}
+                  : sessionUnlocked
+                    ? 'Este equipo desbloqueado'
+                    : 'Falta clave en este equipo'}
               </strong>
               {updatedBy && updatedAt && (
                 <>
@@ -311,12 +408,93 @@ export function UrgentCasesModal({
                 </button>
               )}
             </div>
-            {updatesLocked && (
+            {isAdmin && (
+              <form
+                className="urgent-key-form"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void handleSaveUnlockKey()
+                }}
+              >
+                <label className="urgent-input-label" htmlFor="urgent-define-key">
+                  Clave KV <code>graficos:urgent-unlock-key</code>
+                  {keyConfigured ? ' · configurada' : ' · no configurada'}
+                </label>
+                <div className="urgent-key-row">
+                  <input
+                    id="urgent-define-key"
+                    className="urgent-key-input"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newUnlockKey}
+                    onChange={(event) => {
+                      setNewUnlockKey(event.target.value)
+                      setInputError(null)
+                    }}
+                    placeholder="Nueva clave (mín. 6 caracteres)"
+                    disabled={savingKey || saving}
+                  />
+                  <button
+                    type="submit"
+                    className="ghost-button"
+                    disabled={
+                      savingKey || saving || newUnlockKey.trim().length < 6
+                    }
+                  >
+                    {savingKey ? 'Guardando...' : 'Guardar en KV'}
+                  </button>
+                </div>
+              </form>
+            )}
+            {updatesLocked ? (
               <p className="urgent-lock-hint">
                 {isAdmin
-                  ? 'La lista está bloqueada. Habilítala para que cualquiera pueda actualizarla, o vuelve a bloquearla cuando terminen.'
-                  : 'Un administrador debe habilitar la actualización para poder cambiar esta lista.'}
+                  ? 'La lista está bloqueada. Habilítala y luego ingresa la clave en este equipo. Otros equipos del mismo usuario seguirán bloqueados.'
+                  : 'Un administrador debe habilitar la actualización. Después ingresa la clave en este equipo.'}
               </p>
+            ) : sessionUnlocked ? (
+              <p className="urgent-lock-hint is-open">
+                Este equipo puede actualizar mientras el modal esté abierto. Al
+                cerrarlo, habrá que volver a ingresar la clave.
+              </p>
+            ) : (
+              <form
+                className="urgent-key-form"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void handleUnlockThisDevice()
+                }}
+              >
+                <label className="urgent-input-label" htmlFor="urgent-unlock-key">
+                  Clave de este equipo
+                </label>
+                <div className="urgent-key-row">
+                  <input
+                    id="urgent-unlock-key"
+                    className="urgent-key-input"
+                    type="password"
+                    autoComplete="off"
+                    value={unlockKey}
+                    onChange={(event) => {
+                      setUnlockKey(event.target.value)
+                      setInputError(null)
+                    }}
+                    placeholder="Clave de actualización"
+                    disabled={unlocking || saving}
+                  />
+                  <button
+                    type="submit"
+                    className="reporting-button"
+                    disabled={unlocking || saving || unlockKey.trim().length === 0}
+                  >
+                    {unlocking ? 'Validando...' : 'Desbloquear este equipo'}
+                  </button>
+                </div>
+                <p className="urgent-lock-hint">
+                  La clave no habilita otros computadores. El mismo usuario en
+                  otro equipo debe ingresarla allí.
+                </p>
+              </form>
             )}
             <textarea
               id="urgent-cases-input"
@@ -329,7 +507,7 @@ export function UrgentCasesModal({
               }}
               placeholder="IM-8892122; IM-8970477; RF-8947234"
               rows={4}
-              disabled={saving || updatesLocked}
+              disabled={saving || !canEdit}
             />
             {inputError && (
               <p className="urgent-input-error" role="alert">
@@ -341,10 +519,10 @@ export function UrgentCasesModal({
                 type="button"
                 className="ghost-button"
                 onClick={handleApplyFromScreen}
-                disabled={saving || updatesLocked || togglingLock}
+                disabled={saving || !canEdit || togglingLock}
                 title={
-                  updatesLocked
-                    ? 'La actualización está bloqueada por un administrador'
+                  !canEdit
+                    ? 'Habilita la actualización y desbloquea este equipo con la clave'
                     : undefined
                 }
               >
@@ -356,12 +534,12 @@ export function UrgentCasesModal({
                 onClick={handleClear}
                 disabled={
                   saving ||
-                  updatesLocked ||
+                  !canEdit ||
                   (!inputValue && urgentIds.length === 0)
                 }
                 title={
-                  updatesLocked
-                    ? 'La actualización está bloqueada por un administrador'
+                  !canEdit
+                    ? 'Habilita la actualización y desbloquea este equipo con la clave'
                     : undefined
                 }
               >

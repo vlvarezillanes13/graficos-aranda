@@ -6,6 +6,7 @@ export interface SharedUrgentState {
   actualizadoEn: string | null
   version: number
   edicionBloqueada: boolean
+  claveConfigurada: boolean
 }
 
 export class UrgentCasesLockedError extends Error {
@@ -15,10 +16,18 @@ export class UrgentCasesLockedError extends Error {
   }
 }
 
+export class UrgentCasesKeyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'UrgentCasesKeyError'
+  }
+}
+
 const POLL_INTERVAL_MS = 5000
 
 function asRecord(data: unknown): Record<string, unknown> | null {
-  return data && typeof data === 'object' ? (data as Record<string, unknown>) : null
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  return data as Record<string, unknown>
 }
 
 function normalizeSharedState(data: unknown): SharedUrgentState {
@@ -35,6 +44,7 @@ function normalizeSharedState(data: unknown): SharedUrgentState {
       typeof record.actualizadoEn === 'string' ? record.actualizadoEn : null,
     version: typeof record.version === 'number' ? record.version : 0,
     edicionBloqueada: record.edicionBloqueada !== false,
+    claveConfigurada: record.claveConfigurada === true,
   }
 }
 
@@ -48,6 +58,12 @@ async function parseUrgentError(
     record && typeof record.error === 'string' ? record.error : fallback
 
   if (response.status === 403) {
+    if (
+      message.toLowerCase().includes('clave') ||
+      message.toLowerCase().includes('equipo')
+    ) {
+      return new UrgentCasesKeyError(message)
+    }
     return new UrgentCasesLockedError(message)
   }
 
@@ -113,6 +129,70 @@ export async function setSharedUrgentEditLock(
   }
 
   return normalizeSharedState(await response.json().catch(() => null))
+}
+
+export async function setSharedUrgentUnlockKey(
+  claveHash: string,
+): Promise<void> {
+  const response = await fetch('/api/urgent-cases', {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      accion: 'definir-clave',
+      clave: claveHash,
+    }),
+  })
+
+  if (!response.ok) {
+    throw await parseUrgentError(
+      response,
+      'No fue posible guardar la clave de urgentes',
+    )
+  }
+}
+
+export async function unlockSharedUrgentSession(
+  claveHash: string,
+): Promise<void> {
+  const response = await fetch('/api/urgent-cases', {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      accion: 'desbloquear-sesion',
+      clave: claveHash,
+    }),
+  })
+
+  if (!response.ok) {
+    throw await parseUrgentError(
+      response,
+      'No fue posible desbloquear este equipo',
+    )
+  }
+}
+
+export async function releaseSharedUrgentSession(): Promise<void> {
+  const response = await fetch('/api/urgent-cases', {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ accion: 'cerrar-sesion-edicion' }),
+  })
+
+  if (!response.ok) {
+    throw await parseUrgentError(
+      response,
+      'No fue posible cerrar el desbloqueo de este equipo',
+    )
+  }
 }
 
 export { POLL_INTERVAL_MS as URGENT_CASES_POLL_MS }

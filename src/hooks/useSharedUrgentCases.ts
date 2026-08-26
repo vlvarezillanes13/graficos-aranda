@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchSharedUrgentState,
+  releaseSharedUrgentSession,
   saveSharedUrgentState,
   setSharedUrgentEditLock,
+  setSharedUrgentUnlockKey,
+  unlockSharedUrgentSession,
   URGENT_CASES_POLL_MS,
+  UrgentCasesKeyError,
   UrgentCasesLockedError,
   type SharedUrgentState,
 } from '../services/urgentCasesService'
@@ -15,6 +19,7 @@ const estadoInicial: SharedUrgentState = {
   actualizadoEn: null,
   version: 0,
   edicionBloqueada: true,
+  claveConfigurada: false,
 }
 
 function normalizeIds(ids: string[]): string[] {
@@ -54,7 +59,8 @@ function applySharedState(
     sameIds(next.urgentIds, previous.urgentIds) &&
     next.actualizadoPor === previous.actualizadoPor &&
     next.actualizadoEn === previous.actualizadoEn &&
-    next.edicionBloqueada === previous.edicionBloqueada
+    next.edicionBloqueada === previous.edicionBloqueada &&
+    next.claveConfigurada === previous.claveConfigurada
   ) {
     return previous
   }
@@ -145,12 +151,17 @@ export function useSharedUrgentCases(
         setConnected(true)
         setConnectionError('')
       } catch (error) {
-        if (error instanceof UrgentCasesLockedError) {
-          setState((current) =>
-            current.edicionBloqueada
-              ? current
-              : { ...current, edicionBloqueada: true },
-          )
+        if (
+          error instanceof UrgentCasesLockedError ||
+          error instanceof UrgentCasesKeyError
+        ) {
+          if (error instanceof UrgentCasesLockedError) {
+            setState((current) =>
+              current.edicionBloqueada
+                ? current
+                : { ...current, edicionBloqueada: true },
+            )
+          }
           throw error
         }
 
@@ -189,15 +200,40 @@ export function useSharedUrgentCases(
     [username],
   )
 
+  const setUnlockKey = useCallback(async (claveHash: string) => {
+    await setSharedUrgentUnlockKey(claveHash)
+    setState((current) =>
+      current.claveConfigurada
+        ? current
+        : { ...current, claveConfigurada: true },
+    )
+  }, [])
+
+  const unlockSession = useCallback(async (claveHash: string) => {
+    await unlockSharedUrgentSession(claveHash)
+  }, [])
+
+  const releaseSession = useCallback(async () => {
+    try {
+      await releaseSharedUrgentSession()
+    } catch {
+      // Cerrar el modal no debe fallar si el servidor ya no tiene el permiso.
+    }
+  }, [])
+
   return {
     urgentIds: state.urgentIds,
     updatedBy: state.actualizadoPor,
     updatedAt: state.actualizadoEn,
     updatesLocked: state.edicionBloqueada,
+    keyConfigured: state.claveConfigurada,
     connected,
     realtimeEnabled: true,
     connectionError,
     updateUrgentIds,
     setEditLock,
+    setUnlockKey,
+    unlockSession,
+    releaseSession,
   }
 }
