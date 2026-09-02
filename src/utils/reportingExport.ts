@@ -4,12 +4,15 @@ import {
   AFC_MANTENCION_GROUP,
   IN_PROGRESS_STATE,
 } from '../config/reporting'
-import {
-  CHILEAN_HOLIDAY_RANGE,
-  CHILEAN_NATIONAL_HOLIDAYS,
-} from '../config/chileanHolidays'
+import { CHILEAN_HOLIDAY_RANGE } from '../config/chileanHolidays'
 import { fetchItemHistory } from '../services/itemHistoryService'
 import type { IncidentItem } from '../types/incident'
+import {
+  columnIndexToLetter,
+  createHolidaysWorksheet,
+  EXCEL_DATE_TIME_FORMAT,
+  timestampToExcelSerial,
+} from './excelDates'
 import {
   collectAllStateTransitions,
   findReportInitialTransition,
@@ -24,7 +27,7 @@ function loadXlsx() {
 }
 
 const HISTORY_FETCH_CONCURRENCY = 5
-const AFC_DATE_TIME_FORMAT = 'dd/mm/yyyy hh:mm'
+const AFC_DATE_TIME_FORMAT = EXCEL_DATE_TIME_FORMAT
 const TOTAL_HOURS_FORMAT = '0.00" h"'
 const BASE_COLUMN_COUNT = 3
 const WORKDAY_START = '9/24'
@@ -128,32 +131,6 @@ export function getAfcReportItems(
     if (toTs !== null && item.openedDate > toTs) return false
     return true
   })
-}
-
-function timestampToExcelSerial(timestamp: number): number {
-  const date = new Date(timestamp)
-  const epoch = date.getTime()
-  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000
-  const excelEpoch = Date.UTC(1899, 11, 30)
-  return (epoch - timezoneOffset - excelEpoch) / 86400000
-}
-
-function isoDateToExcelSerial(isoDate: string): number {
-  const [year, month, day] = isoDate.split('-').map(Number)
-  return timestampToExcelSerial(new Date(year, month - 1, day, 0, 0, 0, 0).getTime())
-}
-
-function columnIndexToLetter(index: number): string {
-  let letter = ''
-  let value = index + 1
-
-  while (value > 0) {
-    const remainder = (value - 1) % 26
-    letter = String.fromCharCode(65 + remainder) + letter
-    value = Math.floor((value - 1) / 26)
-  }
-
-  return letter
 }
 
 function fechaColumnIndex(sequence: number): number {
@@ -379,27 +356,6 @@ function applyTotalHoursFormulas(
       z: TOTAL_HOURS_FORMAT,
     }
   })
-}
-
-function createHolidaysWorksheet(XLSX: XlsxModule): WorkSheet {
-  const rows: (string | number)[][] = [['Fecha', 'Feriado']]
-
-  for (const holiday of CHILEAN_NATIONAL_HOLIDAYS) {
-    rows.push([isoDateToExcelSerial(holiday.date), holiday.name])
-  }
-
-  const worksheet = XLSX.utils.aoa_to_sheet(rows)
-
-  for (let row = 1; row < rows.length; row += 1) {
-    const cellRef = XLSX.utils.encode_cell({ r: row, c: 0 })
-    const cell = worksheet[cellRef]
-    if (!cell || typeof cell.v !== 'number') continue
-    cell.t = 'n'
-    cell.z = 'dd/mm/yyyy'
-  }
-
-  worksheet['!cols'] = [{ wch: 14 }, { wch: 42 }]
-  return worksheet
 }
 
 function createAfcReportWorksheet(
