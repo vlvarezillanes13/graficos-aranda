@@ -2000,6 +2000,26 @@ th button {
   background: #fee2e2;
 }
 
+.clickable-row.is-stabilization {
+  background: #f0fdfa;
+  box-shadow: inset 3px 0 0 #14b8a6;
+}
+
+.clickable-row.is-stabilization:hover {
+  background: #ccfbf1;
+}
+
+.clickable-row.is-urgent.is-stabilization {
+  background: #fef2f2;
+  box-shadow:
+    inset 3px 0 0 #ef4444,
+    inset 6px 0 0 #14b8a6;
+}
+
+.clickable-row.is-urgent.is-stabilization:hover {
+  background: #fee2e2;
+}
+
 .ticket-id-row {
   display: inline-flex;
   flex-direction: column;
@@ -2008,7 +2028,8 @@ th button {
   vertical-align: middle;
 }
 
-.urgent-badge {
+.urgent-badge,
+.stabilization-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2021,11 +2042,20 @@ th button {
   line-height: 1;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.urgent-badge {
   background: #fee2e2;
   color: #b91c1c;
   border: 1px solid #fecaca;
-  white-space: nowrap;
-  flex-shrink: 0;
+}
+
+.stabilization-badge {
+  background: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
 }
 
 .mono {

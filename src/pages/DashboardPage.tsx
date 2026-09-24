@@ -57,6 +57,7 @@ interface DashboardPageProps {
   deliveryDatesById: Map<number, ItemDeliveryDates>
   deliveryDatesLoading: boolean
   urgentIds: string[]
+  stabilizationIds: string[]
   onFiltersChange: (filters: FilterState) => void
   onFiltersReset: () => void
   onCustomFieldChange: (field: GroupField) => void
@@ -116,6 +117,7 @@ export function DashboardPage({
   deliveryDatesById,
   deliveryDatesLoading,
   urgentIds,
+  stabilizationIds,
   onFiltersChange,
   onFiltersReset,
   onCustomFieldChange,
@@ -276,6 +278,7 @@ export function DashboardPage({
                       deliveryDatesById={deliveryDatesById}
                       deliveryDatesLoading={deliveryDatesLoading}
                       urgentIds={urgentIds}
+                      stabilizationIds={stabilizationIds}
                     />
                   </article>
                 )}

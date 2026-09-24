@@ -23,6 +23,7 @@ interface ItemsTableProps {
   deliveryDatesById?: Map<number, ItemDeliveryDates>
   deliveryDatesLoading?: boolean
   urgentIds?: string[]
+  stabilizationIds?: string[]
 }
 
 type SortKey =
@@ -73,6 +74,7 @@ export function ItemsTable({
   deliveryDatesById,
   deliveryDatesLoading = false,
   urgentIds = [],
+  stabilizationIds = [],
 }: ItemsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('openedDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -82,6 +84,13 @@ export function ItemsTable({
   const urgentIdSet = useMemo(
     () => new Set(urgentIds.map((id) => id.trim().toUpperCase()).filter(Boolean)),
     [urgentIds],
+  )
+  const stabilizationIdSet = useMemo(
+    () =>
+      new Set(
+        stabilizationIds.map((id) => id.trim().toUpperCase()).filter(Boolean),
+      ),
+    [stabilizationIds],
   )
 
   const itemsIdentity = useMemo(
@@ -222,14 +231,20 @@ export function ItemsTable({
               </tr>
             ) : (
               paginatedItems.map((item) => {
-                const isUrgent = urgentIdSet.has(
-                  item.idByProject.trim().toUpperCase(),
-                )
+                const ticketId = item.idByProject.trim().toUpperCase()
+                const isUrgent = urgentIdSet.has(ticketId)
+                const isStabilization = stabilizationIdSet.has(ticketId)
 
                 return (
                 <tr
                   key={item.id}
-                  className={`clickable-row${isUrgent ? ' is-urgent' : ''}`}
+                  className={[
+                    'clickable-row',
+                    isUrgent ? 'is-urgent' : '',
+                    isStabilization ? 'is-stabilization' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   onClick={() => onSelect?.(item)}
                 >
                   <td className="mono ticket-id-cell">
@@ -238,6 +253,14 @@ export function ItemsTable({
                       {isUrgent && (
                         <span className="urgent-badge" title="Caso urgente">
                           Urgente
+                        </span>
+                      )}
+                      {isStabilization && (
+                        <span
+                          className="stabilization-badge"
+                          title="Caso de estabilización"
+                        >
+                          Estabilización
                         </span>
                       )}
                     </div>

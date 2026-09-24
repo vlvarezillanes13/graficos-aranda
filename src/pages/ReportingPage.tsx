@@ -8,6 +8,7 @@ interface ReportingPageProps {
   loading: boolean
   error: string | null
   urgentIds?: string[]
+  stabilizationIds?: string[]
 }
 
 export function ReportingPage({
@@ -16,6 +17,7 @@ export function ReportingPage({
   loading,
   error,
   urgentIds = [],
+  stabilizationIds = [],
 }: ReportingPageProps) {
   const showFullLoader = loading && items.length === 0 && !fetchedAt
   return (
@@ -56,6 +58,7 @@ export function ReportingPage({
             items={items}
             fetchedAt={fetchedAt}
             urgentIds={urgentIds}
+            stabilizationIds={stabilizationIds}
             disabled={loading}
           />
         )}

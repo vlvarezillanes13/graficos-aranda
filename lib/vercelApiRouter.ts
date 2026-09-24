@@ -19,6 +19,7 @@ import {
   handleVercelItsmItemHistory,
   handleVercelItsmSearch,
 } from './vercelItsmHandlers.js'
+import { handleVercelTaggedCases } from './vercelTaggedCaseListHandlers.js'
 import { handleVercelUrgentCases } from './vercelUrgentHandlers.js'
 
 function firstQueryValue(value: string | string[] | undefined): string {
@@ -114,6 +115,11 @@ export async function routeVercelApi(
 
   if (pathname === '/api/urgent-cases') {
     await handleVercelUrgentCases(req, res)
+    return
+  }
+
+  if (pathname === '/api/stabilization-cases') {
+    await handleVercelTaggedCases('stabilization', req, res)
     return
   }
 

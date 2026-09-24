@@ -12,9 +12,11 @@ interface AppNavProps {
   isAdmin: boolean
   loading: boolean
   urgentCount: number
+  stabilizationCount: number
   onLogout: () => void
   onRefresh: () => void
   onOpenUrgent: () => void
+  onOpenStabilization: () => void
 }
 
 const NAV_ITEMS: Array<{
@@ -63,9 +65,11 @@ export function AppNav({
   isAdmin,
   loading,
   urgentCount,
+  stabilizationCount,
   onLogout,
   onRefresh,
   onOpenUrgent,
+  onOpenStabilization,
 }: AppNavProps) {
   const visibleItems = useMemo(
     () => NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin),
@@ -145,6 +149,15 @@ export function AppNav({
             disabled={loading}
           >
             Urgentes{urgentCount > 0 ? ` (${urgentCount})` : ''}
+          </button>
+          <button
+            type="button"
+            className="app-nav-action secondary"
+            onClick={onOpenStabilization}
+            disabled={loading}
+          >
+            Estabilización
+            {stabilizationCount > 0 ? ` (${stabilizationCount})` : ''}
           </button>
           <button
             type="button"

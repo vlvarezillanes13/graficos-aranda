@@ -29,6 +29,7 @@ interface StandbyPageProps {
   deliveryDatesById: Map<number, ItemDeliveryDates>
   deliveryDatesLoading: boolean
   urgentIds: string[]
+  stabilizationIds: string[]
   onSelectItem: (item: IncidentItem) => void
 }
 
@@ -40,6 +41,7 @@ export function StandbyPage({
   deliveryDatesById,
   deliveryDatesLoading,
   urgentIds,
+  stabilizationIds,
   onSelectItem,
 }: StandbyPageProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
@@ -132,6 +134,7 @@ export function StandbyPage({
                   deliveryDatesById={deliveryDatesById}
                   deliveryDatesLoading={deliveryDatesLoading}
                   urgentIds={urgentIds}
+                  stabilizationIds={stabilizationIds}
                 />
               </div>
             </section>

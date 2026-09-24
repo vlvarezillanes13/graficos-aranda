@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
-import { downloadUrgentCasesXlsx } from '../utils/exportXlsx'
+import {
+  downloadStabilizationCasesXlsx,
+  downloadUrgentCasesXlsx,
+} from '../utils/exportXlsx'
 import {
   filterUrgentItems,
   formatUrgentCaseIds,
@@ -12,10 +15,53 @@ import { fetchDeliveryDatesForItems } from '../services/deliveryDatesService'
 import { sha256Hex } from '../utils/crypto'
 import { ItemsTable } from './ItemsTable'
 
+export type CaseListModalVariant = 'urgent' | 'stabilization'
+
+const VARIANT_COPY: Record<
+  CaseListModalVariant,
+  {
+    title: string
+    titleId: string
+    inputId: string
+    defineKeyId: string
+    unlockKeyId: string
+    listLabel: string
+    emptyMessage: string
+    exportError: string
+    kvKey: string
+  }
+> = {
+  urgent: {
+    title: 'Casos urgentes',
+    titleId: 'urgent-modal-title',
+    inputId: 'urgent-cases-input',
+    defineKeyId: 'urgent-define-key',
+    unlockKeyId: 'urgent-unlock-key',
+    listLabel: 'Lista de casos urgentes',
+    emptyMessage: 'Aplica una lista de IDs para ver los casos urgentes',
+    exportError: 'No se pudo generar el XLSX de casos urgentes',
+    kvKey: 'graficos:urgent-unlock-key',
+  },
+  stabilization: {
+    title: 'Casos de estabilización',
+    titleId: 'stabilization-modal-title',
+    inputId: 'stabilization-cases-input',
+    defineKeyId: 'stabilization-define-key',
+    unlockKeyId: 'stabilization-unlock-key',
+    listLabel: 'Lista de casos de estabilización',
+    emptyMessage:
+      'Aplica una lista de IDs para ver los casos de estabilización',
+    exportError: 'No se pudo generar el XLSX de casos de estabilización',
+    kvKey: 'graficos:stabilization-unlock-key',
+  },
+}
+
 interface UrgentCasesModalProps {
   open: boolean
+  variant?: CaseListModalVariant
   items: IncidentItem[]
   urgentIds: string[]
+  stabilizationIds?: string[]
   fetchedAt?: Date | null
   onUrgentIdsChange: (ids: string[]) => void | Promise<void>
   isAdmin?: boolean
@@ -38,8 +84,10 @@ interface UrgentCasesModalProps {
 
 export function UrgentCasesModal({
   open,
+  variant = 'urgent',
   items,
   urgentIds,
+  stabilizationIds = [],
   fetchedAt,
   onUrgentIdsChange,
   isAdmin = false,
@@ -70,6 +118,7 @@ export function UrgentCasesModal({
   const [unlocking, setUnlocking] = useState(false)
   const [newUnlockKey, setNewUnlockKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
+  const caseIds = variant === 'stabilization' ? stabilizationIds : urgentIds
   const dirtyRef = useRef(false)
   const wasOpenRef = useRef(false)
   const sessionHadModalRef = useRef(false)
@@ -84,7 +133,7 @@ export function UrgentCasesModal({
     }
 
     if (!wasOpenRef.current) {
-      setInputValue(formatUrgentCaseIds(urgentIds))
+      setInputValue(formatUrgentCaseIds(caseIds))
       setInputError(null)
       setExportError(null)
       dirtyRef.current = false
@@ -93,9 +142,9 @@ export function UrgentCasesModal({
     }
 
     if (!dirtyRef.current && !saving) {
-      setInputValue(formatUrgentCaseIds(urgentIds))
+      setInputValue(formatUrgentCaseIds(caseIds))
     }
-  }, [open, urgentIds, saving])
+  }, [open, caseIds, saving])
 
   useEffect(() => {
     if (open) {
@@ -251,30 +300,39 @@ export function UrgentCasesModal({
     void applyIds([])
   }
 
-  const urgentItems = useMemo(
-    () => filterUrgentItems(items, urgentIds),
-    [items, urgentIds],
+  const listedItems = useMemo(
+    () => filterUrgentItems(items, caseIds),
+    [items, caseIds],
   )
 
   const missingIds = useMemo(
-    () => getMissingUrgentIds(items, urgentIds),
-    [items, urgentIds],
+    () => getMissingUrgentIds(items, caseIds),
+    [items, caseIds],
   )
 
   const handleDownloadXlsx = async () => {
-    if (urgentItems.length === 0) return
+    if (listedItems.length === 0) return
 
     setExporting(true)
     setExportError(null)
 
     try {
-      const dates = await fetchDeliveryDatesForItems(urgentItems)
-      await downloadUrgentCasesXlsx(urgentItems, fetchedAt, dates, urgentIds)
+      const dates = await fetchDeliveryDatesForItems(listedItems)
+      if (variant === 'stabilization') {
+        await downloadStabilizationCasesXlsx(
+          listedItems,
+          fetchedAt,
+          dates,
+          caseIds,
+        )
+      } else {
+        await downloadUrgentCasesXlsx(listedItems, fetchedAt, dates, caseIds)
+      }
     } catch (error) {
       setExportError(
         error instanceof Error
           ? error.message
-          : 'No se pudo generar el XLSX de casos urgentes',
+          : VARIANT_COPY[variant].exportError,
       )
     } finally {
       setExporting(false)
@@ -300,11 +358,11 @@ export function UrgentCasesModal({
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="urgent-modal-title"
+        aria-labelledby={VARIANT_COPY[variant].titleId}
       >
         <header className="urgent-modal-header">
           <div className="urgent-modal-heading">
-            <h2 id="urgent-modal-title">Casos urgentes</h2>
+            <h2 id={VARIANT_COPY[variant].titleId}>{VARIANT_COPY[variant].title}</h2>
             <p>
               Lista compartida entre todos los usuarios. Un administrador
               habilita la actualización y, en cada equipo, hay que ingresar la
@@ -347,18 +405,18 @@ export function UrgentCasesModal({
           </div>
 
           <div className="urgent-modal-actions">
-            {urgentIds.length > 0 && (
+            {caseIds.length > 0 && (
               <span className="urgent-modal-stats">
-                <strong>{urgentItems.length}</strong> de{' '}
-                <strong>{urgentIds.length}</strong> encontrados
+                <strong>{listedItems.length}</strong> de{' '}
+                <strong>{caseIds.length}</strong> encontrados
               </span>
             )}
             <button
               type="button"
               className="ghost-button"
               onClick={() => void handleDownloadXlsx()}
-              disabled={urgentItems.length === 0 || exporting}
-              title={`${urgentItems.length} caso${urgentItems.length === 1 ? '' : 's'}`}
+              disabled={listedItems.length === 0 || exporting}
+              title={`${listedItems.length} caso${listedItems.length === 1 ? '' : 's'}`}
             >
               {exporting ? 'Preparando XLSX...' : 'Descargar XLSX'}
             </button>
@@ -388,8 +446,11 @@ export function UrgentCasesModal({
 
           <div className="urgent-input-panel">
             <div className="urgent-input-panel-header">
-              <label className="urgent-input-label" htmlFor="urgent-cases-input">
-                Lista de casos urgentes
+              <label
+                className="urgent-input-label"
+                htmlFor={VARIANT_COPY[variant].inputId}
+              >
+                {VARIANT_COPY[variant].listLabel}
               </label>
               {isAdmin && (
                 <button
@@ -416,13 +477,16 @@ export function UrgentCasesModal({
                   void handleSaveUnlockKey()
                 }}
               >
-                <label className="urgent-input-label" htmlFor="urgent-define-key">
-                  Clave KV <code>graficos:urgent-unlock-key</code>
+                <label
+                  className="urgent-input-label"
+                  htmlFor={VARIANT_COPY[variant].defineKeyId}
+                >
+                  Clave KV <code>{VARIANT_COPY[variant].kvKey}</code>
                   {keyConfigured ? ' · configurada' : ' · no configurada'}
                 </label>
                 <div className="urgent-key-row">
                   <input
-                    id="urgent-define-key"
+                    id={VARIANT_COPY[variant].defineKeyId}
                     className="urgent-key-input"
                     type="password"
                     autoComplete="new-password"
@@ -465,12 +529,15 @@ export function UrgentCasesModal({
                   void handleUnlockThisDevice()
                 }}
               >
-                <label className="urgent-input-label" htmlFor="urgent-unlock-key">
+                <label
+                  className="urgent-input-label"
+                  htmlFor={VARIANT_COPY[variant].unlockKeyId}
+                >
                   Clave de este equipo
                 </label>
                 <div className="urgent-key-row">
                   <input
-                    id="urgent-unlock-key"
+                    id={VARIANT_COPY[variant].unlockKeyId}
                     className="urgent-key-input"
                     type="password"
                     autoComplete="off"
@@ -497,7 +564,7 @@ export function UrgentCasesModal({
               </form>
             )}
             <textarea
-              id="urgent-cases-input"
+              id={VARIANT_COPY[variant].inputId}
               className="urgent-input"
               value={inputValue}
               onChange={(event) => {
@@ -535,7 +602,7 @@ export function UrgentCasesModal({
                 disabled={
                   saving ||
                   !canEdit ||
-                  (!inputValue && urgentIds.length === 0)
+                  (!inputValue && caseIds.length === 0)
                 }
                 title={
                   !canEdit
@@ -548,7 +615,7 @@ export function UrgentCasesModal({
             </div>
           </div>
 
-          {urgentIds.length > 0 && missingIds.length > 0 && (
+          {caseIds.length > 0 && missingIds.length > 0 && (
             <div className="alert info urgent-missing-alert" role="status">
               <p>
                 {missingIds.length} caso{missingIds.length === 1 ? '' : 's'} no{' '}
@@ -560,12 +627,13 @@ export function UrgentCasesModal({
           )}
 
           <ItemsTable
-            items={urgentItems}
+            items={listedItems}
             onSelect={onSelect}
-            emptyMessage="Aplica una lista de IDs para ver los casos urgentes"
+            emptyMessage={VARIANT_COPY[variant].emptyMessage}
             deliveryDatesById={deliveryDatesById}
             deliveryDatesLoading={deliveryDatesLoading}
             urgentIds={urgentIds}
+            stabilizationIds={stabilizationIds}
           />
         </div>
       </div>

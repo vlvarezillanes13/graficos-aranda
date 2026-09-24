@@ -2,6 +2,7 @@ import type { IncidentItem } from '../types/incident'
 
 export const URGENT_CASES_KEY = 'graficos_urgent_cases'
 const LEGACY_URGENT_CASES_KEY = 'ARANDA_URGENTES'
+export const STABILIZATION_CASES_KEY = 'graficos_stabilization_cases'
 
 export function parseUrgentCaseIds(raw: string | null): string[] {
   if (!raw?.trim()) return []
@@ -81,3 +82,23 @@ export function getMissingUrgentIds(
 
   return urgentIds.filter((id) => !loadedIds.has(id))
 }
+
+export function readStabilizationCaseIds(): string[] {
+  return parseUrgentCaseIds(sessionStorage.getItem(STABILIZATION_CASES_KEY))
+}
+
+export function writeStabilizationCaseIds(ids: string[]): void {
+  const normalized = ids
+    .map((id) => id.trim().toUpperCase())
+    .filter(Boolean)
+
+  if (normalized.length === 0) {
+    sessionStorage.removeItem(STABILIZATION_CASES_KEY)
+    return
+  }
+
+  sessionStorage.setItem(STABILIZATION_CASES_KEY, formatUrgentCaseIds(normalized))
+}
+
+export const filterStabilizationItems = filterUrgentItems
+export const getMissingStabilizationIds = getMissingUrgentIds

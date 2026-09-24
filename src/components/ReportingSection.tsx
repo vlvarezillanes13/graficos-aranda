@@ -16,6 +16,7 @@ interface ReportingSectionProps {
   items: IncidentItem[]
   fetchedAt: Date | null
   urgentIds?: string[]
+  stabilizationIds?: string[]
   disabled?: boolean
 }
 
@@ -39,6 +40,7 @@ export function ReportingSection({
   items,
   fetchedAt,
   urgentIds = [],
+  stabilizationIds = [],
   disabled = false,
 }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportingTab>('all')
@@ -72,7 +74,13 @@ export function ReportingSection({
 
     try {
       const dates = await fetchDeliveryDatesForItems(items)
-      await downloadIncidentsXlsx(items, fetchedAt, dates, urgentIds)
+      await downloadIncidentsXlsx(
+        items,
+        fetchedAt,
+        dates,
+        urgentIds,
+        stabilizationIds,
+      )
     } catch (exportError) {
       setError(
         exportError instanceof Error
@@ -83,7 +91,7 @@ export function ReportingSection({
       setExporting(null)
       setProgress(null)
     }
-  }, [items, fetchedAt, urgentIds])
+  }, [items, fetchedAt, urgentIds, stabilizationIds])
 
   const handleExportAfcResolved = useCallback(async () => {
     if (afcReportItems.length === 0 || !afcDateRangeValid) return

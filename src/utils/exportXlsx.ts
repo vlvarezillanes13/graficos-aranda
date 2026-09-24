@@ -33,6 +33,7 @@ const EXPORT_HEADERS = [
   'IMPACTO',
   'URGENCIA',
   'URGENTE',
+  'ESTABILIZACION',
   'PRIORIDAD',
   'CATEGORIA',
   'SUB-CATEGORIA',
@@ -58,9 +59,9 @@ function loadXlsx() {
   return import('xlsx')
 }
 
-function buildUrgentIdSet(urgentIds?: string[]): Set<string> {
+function buildIdSet(ids?: string[]): Set<string> {
   return new Set(
-    (urgentIds ?? [])
+    (ids ?? [])
       .map((id) => id.trim().toUpperCase())
       .filter(Boolean),
   )
@@ -92,8 +93,11 @@ function itemToExportRow(
   item: IncidentItem,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIdSet?: Set<string>,
+  stabilizationIdSet?: Set<string>,
 ): ExportRow {
-  const isUrgent = urgentIdSet?.has(item.idByProject.trim().toUpperCase()) ?? false
+  const ticketId = item.idByProject.trim().toUpperCase()
+  const isUrgent = urgentIdSet?.has(ticketId) ?? false
+  const isStabilization = stabilizationIdSet?.has(ticketId) ?? false
   const deliveryDates = deliveryDatesById?.get(item.id)
 
   return {
@@ -107,6 +111,7 @@ function itemToExportRow(
     IMPACTO: item.impactName,
     URGENCIA: item.urgencyName,
     URGENTE: isUrgent ? 'Sí' : 'No',
+    ESTABILIZACION: isStabilization ? 'Sí' : 'No',
     PRIORIDAD: item.priorityName,
     CATEGORIA: item.categoryHierarchy,
     'SUB-CATEGORIA': item.categoryName,
@@ -218,8 +223,8 @@ function applyDateFormatsAndDiasResueltos(
 
 function applyColumnWidths(worksheet: WorkSheet): void {
   const widths = [
-    16, 22, 14, 36, 48, 18, 22, 14, 14, 12, 14, 28, 22, 22, 26, 22, 22, 22, 26,
-    18,
+    16, 22, 14, 36, 48, 18, 22, 14, 14, 12, 16, 14, 28, 22, 22, 26, 22, 22, 22,
+    26, 18,
   ]
 
   worksheet['!cols'] = EXPORT_HEADERS.map((_, index) => ({
@@ -232,14 +237,21 @@ function createExportWorksheet(
   items: IncidentItem[],
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
+  stabilizationIds?: string[],
 ) {
-  const urgentIdSet = buildUrgentIdSet(urgentIds)
+  const urgentIdSet = buildIdSet(urgentIds)
+  const stabilizationIdSet = buildIdSet(stabilizationIds)
   const worksheet =
     items.length === 0
       ? XLSX.utils.aoa_to_sheet([[...EXPORT_HEADERS]])
       : XLSX.utils.json_to_sheet(
           items.map((item) =>
-            itemToExportRow(item, deliveryDatesById, urgentIdSet),
+            itemToExportRow(
+              item,
+              deliveryDatesById,
+              urgentIdSet,
+              stabilizationIdSet,
+            ),
           ),
           { header: [...EXPORT_HEADERS] },
         )
@@ -263,6 +275,7 @@ export async function downloadIncidentsXlsx(
   fetchedAt?: Date | null,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
+  stabilizationIds?: string[],
 ): Promise<void> {
   if (items.length === 0) return
 
@@ -273,17 +286,35 @@ export async function downloadIncidentsXlsx(
 
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(XLSX, items, deliveryDatesById, urgentIds),
+    createExportWorksheet(
+      XLSX,
+      items,
+      deliveryDatesById,
+      urgentIds,
+      stabilizationIds,
+    ),
     'Todos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(XLSX, openItems, deliveryDatesById, urgentIds),
+    createExportWorksheet(
+      XLSX,
+      openItems,
+      deliveryDatesById,
+      urgentIds,
+      stabilizationIds,
+    ),
     'Abiertos',
   )
   XLSX.utils.book_append_sheet(
     workbook,
-    createExportWorksheet(XLSX, closedItems, deliveryDatesById, urgentIds),
+    createExportWorksheet(
+      XLSX,
+      closedItems,
+      deliveryDatesById,
+      urgentIds,
+      stabilizationIds,
+    ),
     'Cerrados',
   )
   appendHolidaysSheet(XLSX, workbook)
@@ -329,4 +360,37 @@ export async function downloadUrgentCasesXlsx(
 
   const dateStamp = (fetchedAt ?? new Date()).toISOString().slice(0, 10)
   XLSX.writeFile(workbook, `itsm-casos-urgentes-${dateStamp}.xlsx`)
+}
+
+export async function downloadStabilizationCasesXlsx(
+  items: IncidentItem[],
+  fetchedAt?: Date | null,
+  deliveryDatesById?: Map<number, ItemDeliveryDates>,
+  stabilizationIds?: string[],
+): Promise<void> {
+  if (items.length === 0) return
+
+  const XLSX = await loadXlsx()
+  const sortedItems = [...items].sort(
+    (a, b) => b.openedDate - a.openedDate,
+  )
+  const workbook = XLSX.utils.book_new()
+  const idsForExport =
+    stabilizationIds ?? sortedItems.map((item) => item.idByProject)
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    createExportWorksheet(
+      XLSX,
+      sortedItems,
+      deliveryDatesById,
+      undefined,
+      idsForExport,
+    ),
+    'Estabilización',
+  )
+  appendHolidaysSheet(XLSX, workbook)
+
+  const dateStamp = (fetchedAt ?? new Date()).toISOString().slice(0, 10)
+  XLSX.writeFile(workbook, `itsm-casos-estabilizacion-${dateStamp}.xlsx`)
 }

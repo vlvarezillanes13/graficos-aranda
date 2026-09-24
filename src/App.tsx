@@ -41,6 +41,7 @@ import {
   type MatrixSelection,
 } from './utils/aggregations'
 import { filterUrgentItems } from './utils/urgentCases'
+import { useSharedTaggedCases } from './hooks/useSharedTaggedCases'
 import { partitionStandbyItems } from './utils/standbyItems'
 import { useAppRoute } from './hooks/useAppRoute'
 import { useIdleTimeout } from './hooks/useIdleTimeout'
@@ -94,6 +95,7 @@ function App() {
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar')
   const [selectedItem, setSelectedItem] = useState<IncidentItem | null>(null)
   const [urgentModalOpen, setUrgentModalOpen] = useState(false)
+  const [stabilizationModalOpen, setStabilizationModalOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [itsmTokenModalOpen, setItsmTokenModalOpen] = useState(false)
   const [itsmTokenMessage, setItsmTokenMessage] = useState<string | null>(null)
@@ -116,6 +118,22 @@ function App() {
     unlockSession: unlockUrgentSession,
     releaseSession: releaseUrgentSession,
   } = useSharedUrgentCases(username, authenticated)
+
+  const {
+    caseIds: stabilizationIds,
+    updatedBy: stabilizationUpdatedBy,
+    updatedAt: stabilizationUpdatedAt,
+    updatesLocked: stabilizationUpdatesLocked,
+    keyConfigured: stabilizationKeyConfigured,
+    connected: stabilizationRealtimeConnected,
+    realtimeEnabled: stabilizationRealtimeEnabled,
+    connectionError: stabilizationConnectionError,
+    updateCaseIds: updateStabilizationIds,
+    setEditLock: setStabilizationEditLock,
+    setUnlockKey: setStabilizationUnlockKey,
+    unlockSession: unlockStabilizationSession,
+    releaseSession: releaseStabilizationSession,
+  } = useSharedTaggedCases('stabilization', username, authenticated)
 
   const applyFetchResult = useCallback((result: FetchResult) => {
     setItems(result.items)
@@ -215,6 +233,11 @@ function App() {
     [operationalItems, urgentIds],
   )
 
+  const stabilizationItems = useMemo(
+    () => filterUrgentItems(operationalItems, stabilizationIds),
+    [operationalItems, stabilizationIds],
+  )
+
   const itemsForDeliveryDates = useMemo(() => {
     const byId = new Map<number, IncidentItem>()
 
@@ -223,6 +246,10 @@ function App() {
     }
 
     for (const item of urgentItems) {
+      byId.set(item.id, item)
+    }
+
+    for (const item of stabilizationItems) {
       byId.set(item.id, item)
     }
 
@@ -235,7 +262,7 @@ function App() {
     }
 
     return Array.from(byId.values())
-  }, [filteredItems, urgentItems, standbyItems, selectedItem])
+  }, [filteredItems, urgentItems, stabilizationItems, standbyItems, selectedItem])
 
   const { datesById: deliveryDatesById, loading: deliveryDatesLoading } =
     useDeliveryDates(itemsForDeliveryDates)
@@ -275,6 +302,7 @@ function App() {
   )
 
   const urgentCount = urgentItems.length
+  const stabilizationCount = stabilizationItems.length
 
   const handleUrgentIdsChange = useCallback(
     async (ids: string[]) => {
@@ -308,6 +336,38 @@ function App() {
     await releaseUrgentSession()
   }, [releaseUrgentSession])
 
+  const handleStabilizationIdsChange = useCallback(
+    async (ids: string[]) => {
+      await updateStabilizationIds(ids)
+    },
+    [updateStabilizationIds],
+  )
+
+  const handleStabilizationEditLockChange = useCallback(
+    async (locked: boolean) => {
+      await setStabilizationEditLock(locked)
+    },
+    [setStabilizationEditLock],
+  )
+
+  const handleStabilizationUnlockKeyChange = useCallback(
+    async (claveHash: string) => {
+      await setStabilizationUnlockKey(claveHash)
+    },
+    [setStabilizationUnlockKey],
+  )
+
+  const handleStabilizationSessionUnlock = useCallback(
+    async (claveHash: string) => {
+      await unlockStabilizationSession(claveHash)
+    },
+    [unlockStabilizationSession],
+  )
+
+  const handleStabilizationSessionRelease = useCallback(async () => {
+    await releaseStabilizationSession()
+  }, [releaseStabilizationSession])
+
   const handleMatrixSelect = useCallback((selection: MatrixSelection) => {
     setFilters((current) => {
       const active = filtersToMatrixSelection(current)
@@ -327,6 +387,7 @@ function App() {
     setFilters(DEFAULT_FILTERS)
     setSelectedItem(null)
     setUrgentModalOpen(false)
+    setStabilizationModalOpen(false)
     setIsAdmin(false)
     clearDeliveryDatesCache()
   }, [])
@@ -373,9 +434,17 @@ function App() {
         isAdmin={isAdmin}
         loading={loading}
         urgentCount={urgentCount}
+        stabilizationCount={stabilizationCount}
         onLogout={handleLogout}
         onRefresh={() => void loadData()}
-        onOpenUrgent={() => setUrgentModalOpen(true)}
+        onOpenUrgent={() => {
+          setStabilizationModalOpen(false)
+          setUrgentModalOpen(true)
+        }}
+        onOpenStabilization={() => {
+          setUrgentModalOpen(false)
+          setStabilizationModalOpen(true)
+        }}
       />
 
       <Suspense
@@ -403,6 +472,7 @@ function App() {
             deliveryDatesById={deliveryDatesById}
             deliveryDatesLoading={deliveryDatesLoading}
             urgentIds={urgentIds}
+            stabilizationIds={stabilizationIds}
             onFiltersChange={setFilters}
             onFiltersReset={() => setFilters(DEFAULT_FILTERS)}
             onCustomFieldChange={setCustomField}
@@ -419,6 +489,7 @@ function App() {
             deliveryDatesById={deliveryDatesById}
             deliveryDatesLoading={deliveryDatesLoading}
             urgentIds={urgentIds}
+            stabilizationIds={stabilizationIds}
             onSelectItem={setSelectedItem}
           />
         ) : activeRoute === 'reporting' ? (
@@ -428,6 +499,7 @@ function App() {
             loading={loading}
             error={error}
             urgentIds={urgentIds}
+            stabilizationIds={stabilizationIds}
           />
         ) : null}
       </Suspense>
@@ -448,8 +520,10 @@ function App() {
 
       <UrgentCasesModal
         open={urgentModalOpen}
+        variant="urgent"
         items={operationalItems}
         urgentIds={urgentIds}
+        stabilizationIds={stabilizationIds}
         fetchedAt={fetchedAt}
         onUrgentIdsChange={handleUrgentIdsChange}
         isAdmin={isAdmin}
@@ -467,6 +541,32 @@ function App() {
         deliveryDatesById={deliveryDatesById}
         deliveryDatesLoading={deliveryDatesLoading}
         onClose={() => setUrgentModalOpen(false)}
+        onSelect={setSelectedItem}
+      />
+
+      <UrgentCasesModal
+        open={stabilizationModalOpen}
+        variant="stabilization"
+        items={operationalItems}
+        urgentIds={urgentIds}
+        stabilizationIds={stabilizationIds}
+        fetchedAt={fetchedAt}
+        onUrgentIdsChange={handleStabilizationIdsChange}
+        isAdmin={isAdmin}
+        updatesLocked={stabilizationUpdatesLocked}
+        keyConfigured={stabilizationKeyConfigured}
+        onEditLockChange={handleStabilizationEditLockChange}
+        onSetUnlockKey={handleStabilizationUnlockKeyChange}
+        onUnlockSession={handleStabilizationSessionUnlock}
+        onReleaseSession={handleStabilizationSessionRelease}
+        connected={stabilizationRealtimeConnected}
+        realtimeEnabled={stabilizationRealtimeEnabled}
+        connectionError={stabilizationConnectionError}
+        updatedBy={stabilizationUpdatedBy}
+        updatedAt={stabilizationUpdatedAt}
+        deliveryDatesById={deliveryDatesById}
+        deliveryDatesLoading={deliveryDatesLoading}
+        onClose={() => setStabilizationModalOpen(false)}
         onSelect={setSelectedItem}
       />
 

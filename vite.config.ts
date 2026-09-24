@@ -30,6 +30,10 @@ import {
   handleUrgentCasesPost,
 } from './lib/urgentCasesHandlers.js'
 import {
+  handleTaggedCasesGet,
+  handleTaggedCasesPost,
+} from './lib/taggedCaseListHandlers.js'
+import {
   handleAdoBranchSearch,
   handleAdoItemSearch,
 } from './lib/adoBranchSearchHandlers.js'
@@ -138,6 +142,20 @@ function createAuthMiddleware() {
     if (pathname === '/api/urgent-cases' && req.method === 'POST') {
       void handleItsmAuthGuard(req, res).then((allowed) => {
         if (allowed) void handleUrgentCasesPost(req, res)
+      })
+      return
+    }
+
+    if (pathname === '/api/stabilization-cases' && req.method === 'GET') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleTaggedCasesGet('stabilization', req, res)
+      })
+      return
+    }
+
+    if (pathname === '/api/stabilization-cases' && req.method === 'POST') {
+      void handleItsmAuthGuard(req, res).then((allowed) => {
+        if (allowed) void handleTaggedCasesPost('stabilization', req, res)
       })
       return
     }
