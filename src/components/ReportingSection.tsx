@@ -193,9 +193,10 @@ export function ReportingSection({
               <h3>Exportación general</h3>
               <p>
                 Incluye los tickets del panel operativo (excluye categoría
-                Standby) con detalle, fechas en formato Excel, columna DIAS
-                RESUELTOS (días hábiles con feriados) y campos AFC. Genera un
-                archivo con hojas Todos, Abiertos, Cerrados y Feriados.
+                Standby) con detalle, fechas en formato Excel, columnas
+                URGENTES y ESTABILIZACION (Sí/No según cada listado), columna
+                DIAS RESUELTOS (días hábiles con feriados) y campos AFC. Genera
+                un archivo con hojas Todos, Abiertos, Cerrados y Feriados.
               </p>
             </div>
 
