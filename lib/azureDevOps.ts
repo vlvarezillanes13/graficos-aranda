@@ -44,9 +44,15 @@ const DEFAULT_ORG = 'DA-AFP'
 const API_VERSION = '7.1'
 const REPO_CONCURRENCY = 6
 const ITEM_CONCURRENCY = 4
-const SEARCH_DEADLINE_MS = 52_000
+const SEARCH_DEADLINE_MS = 42_000
+const ADO_FETCH_TIMEOUT_MS = 8_000
+const CODE_SEARCH_TIMEOUT_MS = 12_000
+const MAX_TREE_SCANS = 16
+const MAX_NESTED_FOLDERS = 8
 const NOISE_PATH =
   /\/(node_modules|bin|obj|\.vs|packages|dist|wwwroot|\.git|__pycache__)(\/|$)/i
+const INTERESTING_FOLDER =
+  /^(src|source|api|apis|app|apps|componentes?|components?|projects?|proyectos?|backend|frontend|services?|sonda)$/i
 const PROJECT_FILE_EXT = ['.sln', '.csproj', '.vbproj', '.fsproj']
 
 interface AdoProject {
@@ -91,13 +97,52 @@ function buildAuthHeader(pat: string): string {
   return `Basic ${token}`
 }
 
-async function adoFetch<T>(url: string, pat: string): Promise<T> {
-  const response = await fetch(url, {
-    headers: {
-      Authorization: buildAuthHeader(pat),
-      Accept: 'application/json',
-    },
-  })
+function timeoutUntilDeadline(
+  deadline: number,
+  capMs = ADO_FETCH_TIMEOUT_MS,
+): number {
+  return Math.max(400, Math.min(capMs, deadline - Date.now() - 1_200))
+}
+
+function isPastDeadline(deadline: number, reserveMs = 1_500): boolean {
+  return Date.now() + reserveMs >= deadline
+}
+
+async function adoRequest(
+  url: string,
+  pat: string,
+  init: RequestInit = {},
+  timeoutMs = ADO_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    return await fetch(url, {
+      ...init,
+      headers: {
+        Authorization: buildAuthHeader(pat),
+        Accept: 'application/json',
+        ...(init.headers ?? {}),
+      },
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Azure DevOps tardó demasiado en responder')
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function adoFetch<T>(
+  url: string,
+  pat: string,
+  timeoutMs = ADO_FETCH_TIMEOUT_MS,
+): Promise<T> {
+  const response = await adoRequest(url, pat, {}, timeoutMs)
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '')
@@ -109,13 +154,12 @@ async function adoFetch<T>(url: string, pat: string): Promise<T> {
   return (await response.json()) as T
 }
 
-async function adoFetchOptional<T>(url: string, pat: string): Promise<T | null> {
-  const response = await fetch(url, {
-    headers: {
-      Authorization: buildAuthHeader(pat),
-      Accept: 'application/json',
-    },
-  })
+async function adoFetchOptional<T>(
+  url: string,
+  pat: string,
+  timeoutMs = ADO_FETCH_TIMEOUT_MS,
+): Promise<T | null> {
+  const response = await adoRequest(url, pat, {}, timeoutMs)
 
   if (response.status === 404) return null
 
@@ -462,6 +506,7 @@ async function listGitItems(
   branchName: string,
   scopePath: string | null,
   recursionLevel: 'OneLevel' | 'Full',
+  timeoutMs = ADO_FETCH_TIMEOUT_MS,
 ): Promise<GitItem[]> {
   const params = new URLSearchParams({
     recursionLevel,
@@ -474,7 +519,7 @@ async function listGitItems(
   const url =
     `${baseUrl}/${projectId}/_apis/git/repositories/${repoId}/items?${params.toString()}`
 
-  const data = await adoFetchOptional<unknown>(url, pat)
+  const data = await adoFetchOptional<unknown>(url, pat, timeoutMs)
   if (!data) return []
   return parseGitItems(data)
 }
@@ -604,21 +649,21 @@ async function searchCodeIndex(
     parts.push(`path:*${wild}*`)
   }
 
-  const response = await fetch(
+  const response = await adoRequest(
     `https://almsearch.dev.azure.com/${organization}/_apis/search/codesearchresults?api-version=${API_VERSION}`,
+    pat,
     {
       method: 'POST',
       headers: {
-        Authorization: buildAuthHeader(pat),
-        Accept: 'application/json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         searchText: parts.join(' OR '),
         $skip: 0,
-        $top: 200,
+        $top: 100,
       }),
     },
+    CODE_SEARCH_TIMEOUT_MS,
   )
 
   if (!response.ok) return []
@@ -670,70 +715,73 @@ async function collectFromBranch(options: {
   repo: AdoRepository
   branchName: string
   query: string
+  deadline: number
 }): Promise<RawItemHit[]> {
-  let items: GitItem[] = []
+  if (isPastDeadline(options.deadline)) return []
+
+  const timeoutMs = timeoutUntilDeadline(options.deadline)
+  let rootItems: GitItem[] = []
 
   try {
-    items = await listGitItems(
+    rootItems = await listGitItems(
       options.baseUrl,
       options.pat,
       options.project.id,
       options.repo.id,
       options.branchName,
-      null,
-      'Full',
+      '/',
+      'OneLevel',
+      timeoutMs,
     )
   } catch {
-    items = []
+    rootItems = []
   }
 
-  if (items.length <= 1) {
-    try {
-      const rootItems = await listGitItems(
-        options.baseUrl,
-        options.pat,
-        options.project.id,
-        options.repo.id,
-        options.branchName,
-        '/',
-        'OneLevel',
-      )
-
-      const scoped: GitItem[] = []
-      for (const root of rootItems) {
-        if (!root.path || !isFolderItem(root)) {
-          if (root.path) scoped.push(root)
-          continue
-        }
-        try {
-          const nested = await listGitItems(
-            options.baseUrl,
-            options.pat,
-            options.project.id,
-            options.repo.id,
-            options.branchName,
-            normalizePath(root.path),
-            'Full',
-          )
-          scoped.push(...(nested.length > 0 ? nested : [root]))
-        } catch {
-          scoped.push(root)
-        }
-      }
-      if (scoped.length > items.length) items = scoped
-    } catch {
-      // Keep whatever the first listing returned.
-    }
-  }
-
-  return collectFromTree(
-    items,
+  const hits = collectFromTree(
+    rootItems,
     options.organization,
     options.project,
     options.repo,
     options.branchName,
     options.query,
   )
+
+  const folders = rootItems.filter((item) => {
+    if (!item.path || !isFolderItem(item) || isNoisePath(item.path)) return false
+    const name = basename(item.path)
+    return nameMatches(name, options.query) || INTERESTING_FOLDER.test(name)
+  })
+
+  for (const folder of folders.slice(0, MAX_NESTED_FOLDERS)) {
+    if (isPastDeadline(options.deadline) || !folder.path) break
+
+    try {
+      const nested = await listGitItems(
+        options.baseUrl,
+        options.pat,
+        options.project.id,
+        options.repo.id,
+        options.branchName,
+        normalizePath(folder.path),
+        'Full',
+        timeoutUntilDeadline(options.deadline),
+      )
+      hits.push(
+        ...collectFromTree(
+          nested,
+          options.organization,
+          options.project,
+          options.repo,
+          options.branchName,
+          options.query,
+        ),
+      )
+    } catch {
+      // Keep matches already found in this branch.
+    }
+  }
+
+  return collapseNestedHits(hits)
 }
 
 function groupItemHits(hits: RawItemHit[]): ItemSearchHit[] {
@@ -797,12 +845,14 @@ export async function searchAzureDevOpsItems(
   const projectsResponse = await adoFetch<{ value: AdoProject[] }>(
     `${baseUrl}/_apis/projects?$top=1000&api-version=${API_VERSION}`,
     pat,
+    timeoutUntilDeadline(deadline),
   )
   const projects = projectsResponse.value ?? []
 
   const rawHits: RawItemHit[] = []
   let repositoriesScanned = 0
   const defaultBranchByRepo = new Map<string, string>()
+  let truncated = isPastDeadline(deadline)
 
   try {
     const codeHits = await searchCodeIndex(
@@ -813,7 +863,7 @@ export async function searchAzureDevOpsItems(
     )
     rawHits.push(...codeHits)
   } catch {
-    // Code Search may be disabled; git tree scan still runs.
+    // Code Search may be disabled; a bounded git tree scan still runs.
   }
 
   type ScanTarget = {
@@ -821,6 +871,7 @@ export async function searchAzureDevOpsItems(
     repo: AdoRepository
     branchName: string
     isDefault: boolean
+    preferred: boolean
   }
 
   type BranchScanOutcome = {
@@ -842,105 +893,139 @@ export async function searchAzureDevOpsItems(
         rama: '',
         url: buildProjectUrl(organization, project.name),
       })
-    }
-
-    let repositories: AdoRepository[] = []
-    try {
-      const reposResponse = await adoFetch<{ value: AdoRepository[] }>(
-        `${baseUrl}/${project.id}/_apis/git/repositories?api-version=${API_VERSION}`,
-        pat,
-      )
-      repositories = (reposResponse.value ?? []).filter((repo) => !repo.isDisabled)
-    } catch {
-      continue
-    }
-
-    repositoriesScanned += repositories.length
-
-    let matchingProjectBranch = ''
-
-    for (const repo of repositories) {
-      const defaultBranch = repo.defaultBranch
-        ? stripBranchRef(repo.defaultBranch)
-        : ''
-      if (defaultBranch) {
-        defaultBranchByRepo.set(`${project.name}|${repo.name}`, defaultBranch)
-      }
-
-      let branchNames: string[] = []
-      try {
-        const refsFilter = branchFilter.trim()
-          ? `&filterContains=${encodeURIComponent(branchFilter.trim())}`
-          : ''
-        const refsResponse = await adoFetch<{
-          value: Array<{ name: string }>
-        }>(
-          `${baseUrl}/${project.id}/_apis/git/repositories/${repo.id}/refs` +
-            `?filter=heads/${refsFilter}&$top=1000&api-version=${API_VERSION}`,
-          pat,
-        )
-        branchNames = (refsResponse.value ?? [])
-          .map((ref) => stripBranchRef(ref.name))
-          .filter(Boolean)
-      } catch {
-        branchNames = defaultBranch ? [defaultBranch] : []
-      }
-
-      if (branchFilterLower) {
-        branchNames = branchNames.filter((name) =>
-          branchMatchesFilter(name, branchFilterLower),
-        )
-        if (!matchingProjectBranch && branchNames[0]) {
-          matchingProjectBranch = branchNames[0]
-        }
-      }
-
-      if (nameMatches(repo.name, query)) {
-        const ramaForRepo = branchFilterLower
-          ? (branchNames[0] ?? '')
-          : defaultBranch
-        if (ramaForRepo || !branchFilterLower) {
-          rawHits.push({
-            tipo: 'repositorio',
-            proyecto: project.name,
-            repositorio: repo.name,
-            path: '',
-            rama: ramaForRepo,
-            url: ramaForRepo
-              ? buildBranchUrl(
-                  organization,
-                  project.name,
-                  repo.name,
-                  ramaForRepo,
-                )
-              : buildRepoUrl(organization, project.name, repo.name),
-          })
-        }
-      }
-
-      for (const branchName of branchNames) {
-        targets.push({
-          project,
-          repo,
-          branchName,
-          isDefault: Boolean(defaultBranch) && branchName === defaultBranch,
-        })
-      }
-    }
-
-    if (projectNameMatches && branchFilterLower && matchingProjectBranch) {
+    } else if (
+      projectNameMatches &&
+      branchFilterLower &&
+      branchFilter.trim()
+    ) {
       rawHits.push({
         tipo: 'proyecto',
         proyecto: project.name,
         repositorio: '',
         path: '',
-        rama: matchingProjectBranch,
+        rama: branchFilter.trim(),
         url: buildProjectUrl(organization, project.name),
       })
     }
   }
 
-  targets.sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+  const earlyHits = branchFilterLower
+    ? rawHits.filter(
+        (hit) => !hit.rama || branchMatchesFilter(hit.rama, branchFilterLower),
+      )
+    : rawHits
+
+  if (earlyHits.length > 0) {
+    return {
+      results: groupItemHits(collapseNestedHits(earlyHits)),
+      projectsScanned: projects.length,
+      repositoriesScanned,
+      branchesScanned: 0,
+      truncated,
+      query,
+      branchFilter: branchFilter.trim(),
+      organization,
+    }
+  }
+
+  const matchingProjectBranch = branchFilter.trim()
+
+  const projectRepos = await mapWithConcurrency(
+    projects,
+    REPO_CONCURRENCY,
+    async (project) => {
+      if (isPastDeadline(deadline)) {
+        return { project, repositories: [] as AdoRepository[], timedOut: true }
+      }
+
+      try {
+        const reposResponse = await adoFetch<{ value: AdoRepository[] }>(
+          `${baseUrl}/${project.id}/_apis/git/repositories?api-version=${API_VERSION}`,
+          pat,
+          timeoutUntilDeadline(deadline),
+        )
+        return {
+          project,
+          repositories: (reposResponse.value ?? []).filter(
+            (repo) => !repo.isDisabled,
+          ),
+          timedOut: false,
+        }
+      } catch {
+        return { project, repositories: [] as AdoRepository[], timedOut: false }
+      }
+    },
+  )
+
+  for (const entry of projectRepos) {
+    if (entry.timedOut) truncated = true
+    repositoriesScanned += entry.repositories.length
+
+    const projectNameMatches = nameMatches(entry.project.name, query)
+
+    for (const repo of entry.repositories) {
+      const defaultBranch = repo.defaultBranch
+        ? stripBranchRef(repo.defaultBranch)
+        : ''
+      if (defaultBranch) {
+        defaultBranchByRepo.set(
+          `${entry.project.name}|${repo.name}`,
+          defaultBranch,
+        )
+      }
+
+      const repoNameMatches = nameMatches(repo.name, query)
+      const ramaForRepo = branchFilterLower
+        ? matchingProjectBranch
+        : defaultBranch
+
+      if (repoNameMatches && (ramaForRepo || !branchFilterLower)) {
+        rawHits.push({
+          tipo: 'repositorio',
+          proyecto: entry.project.name,
+          repositorio: repo.name,
+          path: '',
+          rama: ramaForRepo,
+          url: ramaForRepo
+            ? buildBranchUrl(
+                organization,
+                entry.project.name,
+                repo.name,
+                ramaForRepo,
+              )
+            : buildRepoUrl(organization, entry.project.name, repo.name),
+        })
+      }
+
+      const branchName = branchFilterLower
+        ? matchingProjectBranch || defaultBranch
+        : defaultBranch
+      if (!branchName) continue
+      if (
+        branchFilterLower &&
+        !branchMatchesFilter(branchName, branchFilterLower)
+      ) {
+        continue
+      }
+
+      targets.push({
+        project: entry.project,
+        repo,
+        branchName,
+        isDefault: Boolean(defaultBranch) && branchName === defaultBranch,
+        preferred: repoNameMatches || projectNameMatches,
+      })
+    }
+  }
+
+  targets.sort((a, b) => {
+    const byPreferred = Number(b.preferred) - Number(a.preferred)
+    if (byPreferred !== 0) return byPreferred
+    return Number(b.isDefault) - Number(a.isDefault)
+  })
+
+  const scanTargets = targets.slice(0, MAX_TREE_SCANS)
+  if (targets.length > scanTargets.length) truncated = true
 
   if (!branchFilterLower) {
     for (const hit of rawHits) {
@@ -953,10 +1038,10 @@ export async function searchAzureDevOpsItems(
   }
 
   const scannedHits = await mapWithConcurrency(
-    targets,
+    scanTargets,
     ITEM_CONCURRENCY,
     async (target): Promise<BranchScanOutcome> => {
-      if (Date.now() > deadline) {
+      if (isPastDeadline(deadline)) {
         return { hits: [], scanned: false, timedOut: true }
       }
 
@@ -969,6 +1054,7 @@ export async function searchAzureDevOpsItems(
           repo: target.repo,
           branchName: target.branchName,
           query,
+          deadline,
         })
         return { hits, scanned: true, timedOut: false }
       } catch {
@@ -977,7 +1063,6 @@ export async function searchAzureDevOpsItems(
     },
   )
 
-  let truncated = false
   let branchesScanned = 0
   for (const outcome of scannedHits) {
     if (outcome.timedOut) truncated = true
@@ -985,8 +1070,12 @@ export async function searchAzureDevOpsItems(
     rawHits.push(...outcome.hits)
   }
 
+  if (isPastDeadline(deadline, 0)) truncated = true
+
   const scopedHits = branchFilterLower
-    ? rawHits.filter((hit) => branchMatchesFilter(hit.rama, branchFilterLower))
+    ? rawHits.filter(
+        (hit) => !hit.rama || branchMatchesFilter(hit.rama, branchFilterLower),
+      )
     : rawHits
 
   return {
