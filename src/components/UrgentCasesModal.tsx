@@ -621,7 +621,7 @@ export function UrgentCasesModal({
               disabled={saving || !canEdit}
             />
             {isStabilization && (
-              <details className="stabilization-help" open>
+              <details className="stabilization-help">
                 <summary>¿Cómo ingresar los casos con su frente?</summary>
                 <ul>
                   <li>

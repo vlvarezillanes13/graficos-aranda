@@ -810,6 +810,232 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Mejoras generales de usabilidad táctil y adaptación fluida
+ * ------------------------------------------------------------------------- */
+
+/* Evita que el fondo se desplace detrás de un modal abierto (iOS / Android). */
+body:has(
+    .detail-overlay,
+    .urgent-modal-overlay,
+    .itsm-token-overlay,
+    .history-comment-overlay,
+    .attachment-zoom-overlay
+  ) {
+  overflow: hidden;
+}
+
+/* Texto largo (asuntos, nombres, URLs) nunca debe romper el layout. */
+.hero-content,
+.hero h1,
+.subtitle,
+.panel-tab-copy,
+.summary-label,
+.filter-chip,
+.admin-results-table td,
+.history-title {
+  overflow-wrap: anywhere;
+}
+
+.filter-field,
+.filter-field select,
+.filter-field input,
+.controls-row label {
+  min-width: 0;
+}
+
+.filter-field select {
+  width: 100%;
+  text-overflow: ellipsis;
+}
+
+/* Respuesta táctil: feedback al presionar en vez de hover. */
+@media (hover: none) {
+  .ghost-button:active,
+  .reporting-button:active,
+  .reporting-filter-reset:active,
+  .assignment-submit-button:active,
+  .app-nav-action:active,
+  .hero-actions button:active,
+  .panel-tab:active,
+  .app-nav-tab:active,
+  .detail-tab:active,
+  .attachment-item:active,
+  .matrix-count-button:active,
+  .matrix-person-button:active,
+  .matrix-state-button:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+
+  .clickable-row:active {
+    background: #eef2ff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Tablet (769px - 1100px): ajustes de densidad. */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .app {
+    padding-left: max(1.1rem, env(safe-area-inset-left));
+    padding-right: max(1.1rem, env(safe-area-inset-right));
+  }
+
+  .hero {
+    padding-top: 1.75rem;
+    padding-bottom: 2.25rem;
+  }
+
+  .hero-actions {
+    align-items: flex-start;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .filter-grid .search-field {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Móvil: más compacto y aprovechando el ancho. */
+@media (max-width: 768px) {
+  /* Filtros: buscador a todo el ancho y selects de a dos. */
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .filter-grid .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .filter-bar-header .ghost-button {
+    width: 100%;
+  }
+
+  .filter-chip {
+    min-height: 2.25rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  /* Pestañas de panel: una sola fila deslizable en vez de apiladas. */
+  .panel-tabs,
+  .panel-tabs.cols-2,
+  .panel-tabs.cols-3 {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .panel-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .panel-tab {
+    flex: 1 0 auto;
+    min-width: 9.5rem;
+    scroll-snap-align: start;
+  }
+
+  .panel-tab-icon {
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  .panel-tab-copy strong {
+    font-size: 0.92rem;
+    white-space: nowrap;
+  }
+
+  /* Gráficos y tablas resumidas más compactas. */
+  .panel-tab-panel-intro p {
+    font-size: 0.88rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .loading-state {
+    padding: 2rem 1rem;
+  }
+
+  .hero-actions-buttons {
+    gap: 0.45rem;
+  }
+
+  .hero-actions button {
+    padding: 0.7rem 1rem;
+  }
+
+  /* Modal de urgentes / estabilización. */
+  .urgent-modal-heading h2 {
+    font-size: 1.05rem;
+  }
+
+  .stabilization-help-example {
+    font-size: 0.74rem;
+  }
+
+  .copyable-ticket-id {
+    /* Siempre visible el icono de copiar: en táctil no existe hover. */
+    padding: 0.2rem 0.45rem 0.2rem 0.3rem;
+  }
+
+  .copyable-ticket-id::before {
+    opacity: 0.6;
+  }
+}
+
+@media (min-width: 561px) and (max-width: 768px) {
+  .items-table tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  .items-table tbody tr {
+    margin-bottom: 0;
+  }
+
+  .items-table tbody tr:has(td.empty-row) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 400px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero h1 {
+    font-size: 1.35rem;
+  }
+
+  .panel-tab {
+    min-width: 8.5rem;
+  }
+
+  .dashboard-panel-header h2,
+  .reporting-panel-header h2,
+  .standby-panel-header h2,
+  .admin-panel-header h2 {
+    font-size: 1.08rem;
+  }
+}
+
 /* Móvil en horizontal: modales sin ocupar toda la altura con paddings grandes. */
 @media (max-height: 480px) and (orientation: landscape) {
   .hero {
