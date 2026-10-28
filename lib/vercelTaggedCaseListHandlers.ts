@@ -114,10 +114,23 @@ export async function handleVercelTaggedCases(
           ? req.body.caseIds
           : []
 
+      const frentes =
+        req.body?.frentes &&
+        typeof req.body.frentes === 'object' &&
+        !Array.isArray(req.body.frentes)
+          ? req.body.frentes
+          : undefined
+
       res.status(200).json(
         toPublicTaggedCasesState(
           kind,
-          await updateTaggedCasesState(kind, caseIds, usuario, sessionToken),
+          await updateTaggedCasesState(
+            kind,
+            caseIds,
+            usuario,
+            sessionToken,
+            frentes,
+          ),
         ),
       )
     } catch (error) {

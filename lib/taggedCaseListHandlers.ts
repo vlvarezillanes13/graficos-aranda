@@ -43,6 +43,7 @@ interface TaggedCasesBody {
   urgentIds?: string[]
   stabilizationIds?: string[]
   caseIds?: string[]
+  frentes?: Record<string, string>
   usuario?: string
   edicionBloqueada?: boolean
   accion?: string
@@ -65,6 +66,15 @@ function readCaseIds(kind: TaggedCaseKind, body: TaggedCasesBody): unknown {
   if (Array.isArray(body[idsField])) return body[idsField]
   if (Array.isArray(body.caseIds)) return body.caseIds
   return []
+}
+
+/** `undefined` cuando el cliente no envía `frentes` (se conservan los guardados). */
+function readFrentes(body: TaggedCasesBody): unknown {
+  const { frentes } = body
+  if (frentes && typeof frentes === 'object' && !Array.isArray(frentes)) {
+    return frentes
+  }
+  return undefined
 }
 
 export async function handleTaggedCasesGet(
@@ -176,6 +186,7 @@ export async function handleTaggedCasesPost(
       readCaseIds(kind, body),
       body.usuario ?? user.username,
       sessionToken,
+      readFrentes(body),
     )
     sendJson(response, 200, toPublicTaggedCasesState(kind, state))
   } catch (error) {

@@ -1,4 +1,12 @@
 import type { IncidentItem } from '../types/incident'
+import {
+  entriesToFrentes,
+  entriesToIds,
+  formatStabilizationEntries,
+  normalizeTicketId,
+  parseStabilizationInput,
+  type FrenteMap,
+} from './stabilizationCases'
 
 export const URGENT_CASES_KEY = 'graficos_urgent_cases'
 const LEGACY_URGENT_CASES_KEY = 'ARANDA_URGENTES'
@@ -83,21 +91,43 @@ export function getMissingUrgentIds(
   return urgentIds.filter((id) => !loadedIds.has(id))
 }
 
-export function readStabilizationCaseIds(): string[] {
-  return parseUrgentCaseIds(sessionStorage.getItem(STABILIZATION_CASES_KEY))
+/**
+ * La caché de sesión usa el mismo texto `ID|FRENTE; ID2`; las cachés antiguas
+ * (`ID; ID2` o arreglo JSON) se leen sin frente.
+ */
+export function readStabilizationCases(): {
+  ids: string[]
+  frentes: FrenteMap
+} {
+  const { entries } = parseStabilizationInput(
+    sessionStorage.getItem(STABILIZATION_CASES_KEY),
+  )
+  return { ids: entriesToIds(entries), frentes: entriesToFrentes(entries) }
 }
 
-export function writeStabilizationCaseIds(ids: string[]): void {
-  const normalized = ids
-    .map((id) => id.trim().toUpperCase())
-    .filter(Boolean)
+export function readStabilizationCaseIds(): string[] {
+  return readStabilizationCases().ids
+}
+
+export function writeStabilizationCases(
+  ids: string[],
+  frentes: FrenteMap = {},
+): void {
+  const normalized = ids.map(normalizeTicketId).filter(Boolean)
 
   if (normalized.length === 0) {
     sessionStorage.removeItem(STABILIZATION_CASES_KEY)
     return
   }
 
-  sessionStorage.setItem(STABILIZATION_CASES_KEY, formatUrgentCaseIds(normalized))
+  sessionStorage.setItem(
+    STABILIZATION_CASES_KEY,
+    formatStabilizationEntries(normalized, frentes),
+  )
+}
+
+export function writeStabilizationCaseIds(ids: string[]): void {
+  writeStabilizationCases(ids)
 }
 
 export const filterStabilizationItems = filterUrgentItems

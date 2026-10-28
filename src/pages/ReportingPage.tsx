@@ -1,6 +1,7 @@
 import { LoadingState } from '../components/LoadingState'
 import { ReportingSection } from '../components/ReportingSection'
 import type { IncidentItem } from '../types/incident'
+import type { FrenteMap } from '../utils/stabilizationCases'
 
 interface ReportingPageProps {
   items: IncidentItem[]
@@ -9,6 +10,7 @@ interface ReportingPageProps {
   error: string | null
   urgentIds?: string[]
   stabilizationIds?: string[]
+  stabilizationFrentes?: FrenteMap
 }
 
 export function ReportingPage({
@@ -18,6 +20,7 @@ export function ReportingPage({
   error,
   urgentIds = [],
   stabilizationIds = [],
+  stabilizationFrentes,
 }: ReportingPageProps) {
   const showFullLoader = loading && items.length === 0 && !fetchedAt
   return (
@@ -59,6 +62,7 @@ export function ReportingPage({
             fetchedAt={fetchedAt}
             urgentIds={urgentIds}
             stabilizationIds={stabilizationIds}
+            stabilizationFrentes={stabilizationFrentes}
             disabled={loading}
           />
         )}

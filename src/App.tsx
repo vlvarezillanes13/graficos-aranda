@@ -41,6 +41,7 @@ import {
   type MatrixSelection,
 } from './utils/aggregations'
 import { filterUrgentItems } from './utils/urgentCases'
+import type { FrenteMap } from './utils/stabilizationCases'
 import { useSharedTaggedCases } from './hooks/useSharedTaggedCases'
 import { partitionStandbyItems } from './utils/standbyItems'
 import { useAppRoute } from './hooks/useAppRoute'
@@ -121,6 +122,7 @@ function App() {
 
   const {
     caseIds: stabilizationIds,
+    frentes: stabilizationFrentes,
     updatedBy: stabilizationUpdatedBy,
     updatedAt: stabilizationUpdatedAt,
     updatesLocked: stabilizationUpdatesLocked,
@@ -224,8 +226,8 @@ function App() {
   )
 
   const filteredItems = useMemo(
-    () => filterItems(operationalItems, filters),
-    [operationalItems, filters],
+    () => filterItems(operationalItems, filters, stabilizationFrentes),
+    [operationalItems, filters, stabilizationFrentes],
   )
 
   const urgentItems = useMemo(
@@ -337,8 +339,8 @@ function App() {
   }, [releaseUrgentSession])
 
   const handleStabilizationIdsChange = useCallback(
-    async (ids: string[]) => {
-      await updateStabilizationIds(ids)
+    async (ids: string[], frentes?: FrenteMap) => {
+      await updateStabilizationIds(ids, frentes)
     },
     [updateStabilizationIds],
   )
@@ -500,6 +502,7 @@ function App() {
             error={error}
             urgentIds={urgentIds}
             stabilizationIds={stabilizationIds}
+            stabilizationFrentes={stabilizationFrentes}
           />
         ) : null}
       </Suspense>
@@ -550,6 +553,7 @@ function App() {
         items={operationalItems}
         urgentIds={urgentIds}
         stabilizationIds={stabilizationIds}
+        stabilizationFrentes={stabilizationFrentes}
         fetchedAt={fetchedAt}
         onUrgentIdsChange={handleStabilizationIdsChange}
         isAdmin={isAdmin}

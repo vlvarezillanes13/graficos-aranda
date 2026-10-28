@@ -2,6 +2,7 @@ import type { WorkSheet } from 'xlsx'
 import { CHILEAN_HOLIDAY_RANGE } from '../config/chileanHolidays'
 import type { ItemDeliveryDates } from '../types/additionalField'
 import type { IncidentItem } from '../types/incident'
+import { getFrente, type FrenteMap } from './stabilizationCases'
 import {
   buildSpanishTextDateFormula,
   columnIndexToLetter,
@@ -21,6 +22,7 @@ const FECHA_ENTREGA_HEADER = 'FECHA DE ENTREGA'
 const DIAS_RESUELTOS_HEADER = 'DIAS RESUELTOS'
 const DIAS_RESUELTOS_FORMAT = '0'
 const SIN_FECHA_DE_ENTREGA = 'SIN FECHA DE ENTREGA'
+const FRENTE_HEADER = 'FRENTE'
 
 const EXPORT_HEADERS = [
   'ESTADO GENERAL',
@@ -34,6 +36,7 @@ const EXPORT_HEADERS = [
   'URGENCIA',
   'URGENTES',
   'ESTABILIZACION',
+  FRENTE_HEADER,
   'PRIORIDAD',
   'CATEGORIA',
   'SUB-CATEGORIA',
@@ -94,6 +97,7 @@ function itemToExportRow(
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIdSet?: Set<string>,
   stabilizationIdSet?: Set<string>,
+  stabilizationFrentes?: FrenteMap,
 ): ExportRow {
   const ticketId = item.idByProject.trim().toUpperCase()
   const isUrgent = urgentIdSet?.has(ticketId) ?? false
@@ -112,6 +116,10 @@ function itemToExportRow(
     URGENCIA: item.urgencyName,
     URGENTES: isUrgent ? 'Sí' : 'No',
     ESTABILIZACION: isStabilization ? 'Sí' : 'No',
+    // Vacío cuando el ticket no es de estabilización o no tiene frente.
+    [FRENTE_HEADER]: isStabilization
+      ? getFrente(stabilizationFrentes, ticketId)
+      : '',
     PRIORIDAD: item.priorityName,
     CATEGORIA: item.categoryHierarchy,
     'SUB-CATEGORIA': item.categoryName,
@@ -221,14 +229,34 @@ function applyDateFormatsAndDiasResueltos(
   }
 }
 
-function applyColumnWidths(worksheet: WorkSheet): void {
-  const widths = [
-    16, 22, 14, 36, 48, 18, 22, 14, 14, 12, 16, 14, 28, 22, 22, 26, 22, 22, 22,
-    26, 18,
-  ]
+const COLUMN_WIDTHS: Record<string, number> = {
+  'ESTADO GENERAL': 16,
+  GRUPO: 22,
+  'N° TICKET': 14,
+  ASUNTO: 36,
+  DESCRIPCION: 48,
+  [ESTADO_HEADER]: 18,
+  RESPONSABLE: 22,
+  IMPACTO: 14,
+  URGENCIA: 14,
+  URGENTES: 12,
+  ESTABILIZACION: 16,
+  [FRENTE_HEADER]: 16,
+  PRIORIDAD: 14,
+  CATEGORIA: 28,
+  'SUB-CATEGORIA': 22,
+  [FECHA_APERTURA_HEADER]: 22,
+  [FECHA_ENTREGA_HEADER]: 26,
+  'FECHA ENTREGA TEST': 22,
+  'FECHA GESTIÓN AFC': 22,
+  'FECHA TEST APROBADO': 22,
+  'FECHA PENDIENTE SUSPENDIDO': 26,
+  [DIAS_RESUELTOS_HEADER]: 18,
+}
 
-  worksheet['!cols'] = EXPORT_HEADERS.map((_, index) => ({
-    wch: widths[index] ?? 18,
+function applyColumnWidths(worksheet: WorkSheet): void {
+  worksheet['!cols'] = EXPORT_HEADERS.map((header) => ({
+    wch: COLUMN_WIDTHS[header] ?? 18,
   }))
 }
 
@@ -238,6 +266,7 @@ function createExportWorksheet(
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
   stabilizationIds?: string[],
+  stabilizationFrentes?: FrenteMap,
 ) {
   const urgentIdSet = buildIdSet(urgentIds)
   const stabilizationIdSet = buildIdSet(stabilizationIds)
@@ -251,6 +280,7 @@ function createExportWorksheet(
               deliveryDatesById,
               urgentIdSet,
               stabilizationIdSet,
+              stabilizationFrentes,
             ),
           ),
           { header: [...EXPORT_HEADERS] },
@@ -276,6 +306,7 @@ export async function downloadIncidentsXlsx(
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   urgentIds?: string[],
   stabilizationIds?: string[],
+  stabilizationFrentes?: FrenteMap,
 ): Promise<void> {
   if (items.length === 0) return
 
@@ -292,6 +323,7 @@ export async function downloadIncidentsXlsx(
       deliveryDatesById,
       urgentIds,
       stabilizationIds,
+      stabilizationFrentes,
     ),
     'Todos',
   )
@@ -303,6 +335,7 @@ export async function downloadIncidentsXlsx(
       deliveryDatesById,
       urgentIds,
       stabilizationIds,
+      stabilizationFrentes,
     ),
     'Abiertos',
   )
@@ -314,6 +347,7 @@ export async function downloadIncidentsXlsx(
       deliveryDatesById,
       urgentIds,
       stabilizationIds,
+      stabilizationFrentes,
     ),
     'Cerrados',
   )
@@ -367,6 +401,7 @@ export async function downloadStabilizationCasesXlsx(
   fetchedAt?: Date | null,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
   stabilizationIds?: string[],
+  stabilizationFrentes?: FrenteMap,
 ): Promise<void> {
   if (items.length === 0) return
 
@@ -386,6 +421,7 @@ export async function downloadStabilizationCasesXlsx(
       deliveryDatesById,
       undefined,
       idsForExport,
+      stabilizationFrentes,
     ),
     'Estabilización',
   )

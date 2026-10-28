@@ -1,9 +1,12 @@
+import { normalizeFrenteMap, type FrenteMap } from '../utils/stabilizationCases'
 import { getAuthHeaders } from './authService'
 
 export type TaggedCaseKind = 'urgent' | 'stabilization'
 
 export interface SharedTaggedCasesState {
   caseIds: string[]
+  /** ticket (MAYÚSCULAS) -> frente; vacío si el ticket no tiene frente. */
+  frentes: FrenteMap
   actualizadoPor: string | null
   actualizadoEn: string | null
   version: number
@@ -57,6 +60,7 @@ function normalizeSharedState(
 
   return {
     caseIds,
+    frentes: normalizeFrenteMap(record.frentes),
     actualizadoPor:
       typeof record.actualizadoPor === 'string' ? record.actualizadoPor : null,
     actualizadoEn:
@@ -110,6 +114,7 @@ export async function saveSharedTaggedCasesState(
   kind: TaggedCaseKind,
   caseIds: string[],
   usuario: string,
+  frentes?: FrenteMap,
 ): Promise<SharedTaggedCasesState> {
   const response = await fetch(LIST_ENDPOINTS[kind], {
     method: 'POST',
@@ -119,6 +124,7 @@ export async function saveSharedTaggedCasesState(
     },
     body: JSON.stringify({
       [LIST_ID_FIELDS[kind]]: caseIds,
+      ...(frentes ? { frentes } : {}),
       usuario,
     }),
   })

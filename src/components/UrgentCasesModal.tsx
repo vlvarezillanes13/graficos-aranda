@@ -11,6 +11,13 @@ import {
   getMissingUrgentIds,
   parseUrgentCaseIds,
 } from '../utils/urgentCases'
+import {
+  entriesToFrentes,
+  entriesToIds,
+  formatStabilizationEntries,
+  parseStabilizationInput,
+  type FrenteMap,
+} from '../utils/stabilizationCases'
 import { fetchDeliveryDatesForItems } from '../services/deliveryDatesService'
 import { sha256Hex } from '../utils/crypto'
 import { ItemsTable } from './ItemsTable'
@@ -62,8 +69,12 @@ interface UrgentCasesModalProps {
   items: IncidentItem[]
   urgentIds: string[]
   stabilizationIds?: string[]
+  stabilizationFrentes?: FrenteMap
   fetchedAt?: Date | null
-  onUrgentIdsChange: (ids: string[]) => void | Promise<void>
+  onUrgentIdsChange: (
+    ids: string[],
+    frentes?: FrenteMap,
+  ) => void | Promise<void>
   isAdmin?: boolean
   updatesLocked?: boolean
   keyConfigured?: boolean
@@ -88,6 +99,7 @@ export function UrgentCasesModal({
   items,
   urgentIds,
   stabilizationIds = [],
+  stabilizationFrentes,
   fetchedAt,
   onUrgentIdsChange,
   isAdmin = false,
@@ -118,10 +130,21 @@ export function UrgentCasesModal({
   const [unlocking, setUnlocking] = useState(false)
   const [newUnlockKey, setNewUnlockKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
-  const caseIds = variant === 'stabilization' ? stabilizationIds : urgentIds
+  const isStabilization = variant === 'stabilization'
+  const caseIds = isStabilization ? stabilizationIds : urgentIds
+  const frentes = isStabilization ? stabilizationFrentes : undefined
   const dirtyRef = useRef(false)
   const wasOpenRef = useRef(false)
   const sessionHadModalRef = useRef(false)
+
+  // Estabilización: `ID|FRENTE; ID2`. Urgentes: `ID; ID2` (sin cambios).
+  const formatList = useCallback(
+    (ids: string[], idFrentes?: FrenteMap) =>
+      isStabilization
+        ? formatStabilizationEntries(ids, idFrentes)
+        : formatUrgentCaseIds(ids),
+    [isStabilization],
+  )
 
   // Solo hidratar al abrir, o si llega un cambio remoto y el usuario no está editando.
   // El poll cada 5s no debe borrar lo que se está escribiendo.
@@ -133,7 +156,7 @@ export function UrgentCasesModal({
     }
 
     if (!wasOpenRef.current) {
-      setInputValue(formatUrgentCaseIds(caseIds))
+      setInputValue(formatList(caseIds, frentes))
       setInputError(null)
       setExportError(null)
       dirtyRef.current = false
@@ -142,9 +165,9 @@ export function UrgentCasesModal({
     }
 
     if (!dirtyRef.current && !saving) {
-      setInputValue(formatUrgentCaseIds(caseIds))
+      setInputValue(formatList(caseIds, frentes))
     }
-  }, [open, caseIds, saving])
+  }, [open, caseIds, frentes, saving, formatList])
 
   useEffect(() => {
     if (open) {
@@ -184,13 +207,13 @@ export function UrgentCasesModal({
   }, [open, onClose])
 
   const applyIds = useCallback(
-    async (ids: string[]) => {
+    async (ids: string[], idFrentes?: FrenteMap) => {
       setSaving(true)
       setInputError(null)
 
       try {
-        await onUrgentIdsChange(ids)
-        setInputValue(formatUrgentCaseIds(ids))
+        await onUrgentIdsChange(ids, idFrentes)
+        setInputValue(formatList(ids, idFrentes))
         dirtyRef.current = false
       } catch (error) {
         setInputError(
@@ -202,7 +225,7 @@ export function UrgentCasesModal({
         setSaving(false)
       }
     },
-    [onUrgentIdsChange],
+    [onUrgentIdsChange, formatList],
   )
 
   const handleToggleLock = useCallback(async () => {
@@ -286,6 +309,22 @@ export function UrgentCasesModal({
 
   const handleApplyFromScreen = () => {
     if (!canEdit) return
+    if (isStabilization) {
+      const { entries, errors } = parseStabilizationInput(inputValue)
+      if (errors.length > 0) {
+        setInputError(`Formato inválido, corrige antes de aplicar: ${errors.join('; ')}`)
+        return
+      }
+      if (entries.length === 0) {
+        setInputError(
+          'Ingresa al menos un ID (ej: RF-9155057|BYP; RF-9059887)',
+        )
+        return
+      }
+      void applyIds(entriesToIds(entries), entriesToFrentes(entries))
+      return
+    }
+
     const ids = parseUrgentCaseIds(inputValue)
     if (ids.length === 0) {
       setInputError('Ingresa al menos un ID (ej: IM-8892122; RF-8947234)')
@@ -297,7 +336,7 @@ export function UrgentCasesModal({
   const handleClear = () => {
     if (!canEdit) return
     setInputValue('')
-    void applyIds([])
+    void applyIds([], isStabilization ? {} : undefined)
   }
 
   const listedItems = useMemo(
@@ -324,6 +363,7 @@ export function UrgentCasesModal({
           fetchedAt,
           dates,
           caseIds,
+          frentes,
         )
       } else {
         await downloadUrgentCasesXlsx(listedItems, fetchedAt, dates, caseIds)
@@ -572,10 +612,50 @@ export function UrgentCasesModal({
                 setInputValue(event.target.value)
                 setInputError(null)
               }}
-              placeholder="IM-8892122; IM-8970477; RF-8947234"
+              placeholder={
+                isStabilization
+                  ? 'RF-9155057|BYP; RF-9059887|RN; RF-9056222\n(un registro por línea o separados por ";", frente opcional con "|")'
+                  : 'IM-8892122; IM-8970477; RF-8947234'
+              }
               rows={4}
               disabled={saving || !canEdit}
             />
+            {isStabilization && (
+              <details className="stabilization-help" open>
+                <summary>¿Cómo ingresar los casos con su frente?</summary>
+                <ul>
+                  <li>
+                    Cada caso se escribe como <code>TICKET|FRENTE</code>,
+                    separando el ticket y el frente con <code>|</code>.
+                  </li>
+                  <li>
+                    Separa los casos con <code>;</code> o ingresa uno por línea.
+                  </li>
+                  <li>
+                    El frente es opcional: si lo omites, el campo queda vacío.
+                    Puedes mezclar casos con y sin frente.
+                  </li>
+                  <li>
+                    El frente es texto libre (ej: BYP, RN, CRP) y no puede
+                    contener <code>|</code>, <code>;</code> ni <code>,</code>.
+                  </li>
+                  <li>
+                    Si repites un ticket, se registra una sola vez y se usa el
+                    último frente informado.
+                  </li>
+                </ul>
+                <p className="stabilization-help-label">En una línea:</p>
+                <pre className="stabilization-help-example">
+                  RF-9155057|BYP;RF-9059887|RN;RF-9056222|CRP
+                </pre>
+                <p className="stabilization-help-label">
+                  Uno por línea, con y sin frente:
+                </p>
+                <pre className="stabilization-help-example">
+                  {'RF-9155057|BYP;\nRF-9059887;\nRF-9056222|RN;\nRF-9236636'}
+                </pre>
+              </details>
+            )}
             {inputError && (
               <p className="urgent-input-error" role="alert">
                 {inputError}
@@ -634,6 +714,8 @@ export function UrgentCasesModal({
             deliveryDatesLoading={deliveryDatesLoading}
             urgentIds={urgentIds}
             stabilizationIds={stabilizationIds}
+            frentes={frentes}
+            showFrente={isStabilization}
           />
         </div>
       </div>

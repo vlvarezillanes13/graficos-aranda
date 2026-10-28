@@ -7,6 +7,8 @@ export interface TaggedCaseListConfig {
   idsField: 'urgentIds' | 'stabilizationIds'
   label: string
   labelSingular: string
+  /** Si es true, cada ticket puede tener un frente asociado (campo `frentes`). */
+  supportsFrentes: boolean
 }
 
 export const TAGGED_CASE_LISTS: Record<TaggedCaseKind, TaggedCaseListConfig> = {
@@ -17,6 +19,7 @@ export const TAGGED_CASE_LISTS: Record<TaggedCaseKind, TaggedCaseListConfig> = {
     idsField: 'urgentIds',
     label: 'urgentes',
     labelSingular: 'urgente',
+    supportsFrentes: false,
   },
   stabilization: {
     storageKey: 'graficos:stabilization-cases',
@@ -25,5 +28,6 @@ export const TAGGED_CASE_LISTS: Record<TaggedCaseKind, TaggedCaseListConfig> = {
     idsField: 'stabilizationIds',
     label: 'estabilización',
     labelSingular: 'estabilización',
+    supportsFrentes: true,
   },
 }

@@ -1481,6 +1481,46 @@
   color: #166534;
 }
 
+.stabilization-help {
+  margin: 0.6rem 0 0;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.stabilization-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.stabilization-help ul {
+  margin: 0.5rem 0;
+  padding-left: 1.2rem;
+}
+
+.stabilization-help li + li {
+  margin-top: 0.2rem;
+}
+
+.stabilization-help-label {
+  margin: 0.5rem 0 0.2rem;
+  font-weight: 600;
+}
+
+.stabilization-help-example {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 .urgent-key-form {
   margin: 0 0 0.75rem;
 }

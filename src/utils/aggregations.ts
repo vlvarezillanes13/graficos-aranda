@@ -85,6 +85,7 @@ export function getUniqueValues(
 export function filterItems(
   items: IncidentItem[],
   filters: FilterState,
+  frentes?: Record<string, string>,
 ): IncidentItem[] {
   const search = filters.search.trim().toLowerCase()
 
@@ -114,8 +115,10 @@ export function filterItems(
       item.groupName,
       item.stateName,
       item.customerName,
+      // Frente de estabilización (vacío si el ticket no tiene frente).
+      frentes?.[item.idByProject.trim().toUpperCase()],
     ]
-      .filter(Boolean)
+      .filter((value): value is string => Boolean(value))
       .some((value) => value.toLowerCase().includes(search))
   })
 }

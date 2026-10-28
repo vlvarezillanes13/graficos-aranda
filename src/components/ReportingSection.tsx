@@ -12,11 +12,14 @@ import {
   type AfcReportFilters,
   type ReportingProgress,
 } from '../utils/reportingExport'
+import type { FrenteMap } from '../utils/stabilizationCases'
+
 interface ReportingSectionProps {
   items: IncidentItem[]
   fetchedAt: Date | null
   urgentIds?: string[]
   stabilizationIds?: string[]
+  stabilizationFrentes?: FrenteMap
   disabled?: boolean
 }
 
@@ -41,6 +44,7 @@ export function ReportingSection({
   fetchedAt,
   urgentIds = [],
   stabilizationIds = [],
+  stabilizationFrentes,
   disabled = false,
 }: ReportingSectionProps) {
   const [activeTab, setActiveTab] = useState<ReportingTab>('all')
@@ -80,6 +84,7 @@ export function ReportingSection({
         dates,
         urgentIds,
         stabilizationIds,
+        stabilizationFrentes,
       )
     } catch (exportError) {
       setError(
@@ -91,7 +96,7 @@ export function ReportingSection({
       setExporting(null)
       setProgress(null)
     }
-  }, [items, fetchedAt, urgentIds, stabilizationIds])
+  }, [items, fetchedAt, urgentIds, stabilizationIds, stabilizationFrentes])
 
   const handleExportAfcResolved = useCallback(async () => {
     if (afcReportItems.length === 0 || !afcDateRangeValid) return
@@ -195,6 +200,7 @@ export function ReportingSection({
                 Incluye los tickets del panel operativo (excluye categoría
                 Standby) con detalle, fechas en formato Excel, columnas
                 URGENTES y ESTABILIZACION (Sí/No según cada listado), columna
+                FRENTE (frente de los casos de estabilización), columna
                 DIAS RESUELTOS (días hábiles con feriados) y campos AFC. Genera
                 un archivo con hojas Todos, Abiertos, Cerrados y Feriados.
               </p>

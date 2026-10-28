@@ -13,14 +13,20 @@ import {
   type TaggedCaseKind,
 } from '../services/taggedCaseListService'
 import {
-  readStabilizationCaseIds,
+  normalizeFrenteMap,
+  sameFrenteMap,
+  type FrenteMap,
+} from '../utils/stabilizationCases'
+import {
+  readStabilizationCases,
   readUrgentCaseIds,
-  writeStabilizationCaseIds,
+  writeStabilizationCases,
   writeUrgentCaseIds,
 } from '../utils/urgentCases'
 
 const estadoInicial: SharedTaggedCasesState = {
   caseIds: [],
+  frentes: {},
   actualizadoPor: null,
   actualizadoEn: null,
   version: 0,
@@ -28,16 +34,25 @@ const estadoInicial: SharedTaggedCasesState = {
   claveConfigurada: false,
 }
 
-function readCachedIds(kind: TaggedCaseKind): string[] {
-  return kind === 'urgent' ? readUrgentCaseIds() : readStabilizationCaseIds()
+function readCached(kind: TaggedCaseKind): {
+  ids: string[]
+  frentes: FrenteMap
+} {
+  return kind === 'urgent'
+    ? { ids: readUrgentCaseIds(), frentes: {} }
+    : readStabilizationCases()
 }
 
-function writeCachedIds(kind: TaggedCaseKind, ids: string[]): void {
+function writeCachedIds(
+  kind: TaggedCaseKind,
+  ids: string[],
+  frentes: FrenteMap = {},
+): void {
   if (kind === 'urgent') {
     writeUrgentCaseIds(ids)
     return
   }
-  writeStabilizationCaseIds(ids)
+  writeStabilizationCases(ids, frentes)
 }
 
 function normalizeIds(ids: string[]): string[] {
@@ -75,6 +90,7 @@ function applySharedState(
   if (
     next.version === previous.version &&
     sameIds(next.caseIds, previous.caseIds) &&
+    sameFrenteMap(next.frentes, previous.frentes) &&
     next.actualizadoPor === previous.actualizadoPor &&
     next.actualizadoEn === previous.actualizadoEn &&
     next.edicionBloqueada === previous.edicionBloqueada &&
@@ -92,7 +108,7 @@ function applySharedState(
     return previous
   }
 
-  writeCachedIds(kind, next.caseIds)
+  writeCachedIds(kind, next.caseIds, next.frentes)
   return next
 }
 
@@ -101,10 +117,10 @@ export function useSharedTaggedCases(
   username: string | null,
   enabled: boolean,
 ) {
-  const [state, setState] = useState<SharedTaggedCasesState>(() => ({
-    ...estadoInicial,
-    caseIds: enabled ? readCachedIds(kind) : [],
-  }))
+  const [state, setState] = useState<SharedTaggedCasesState>(() => {
+    const cached = enabled ? readCached(kind) : { ids: [], frentes: {} }
+    return { ...estadoInicial, caseIds: cached.ids, frentes: cached.frentes }
+  })
   const [connected, setConnected] = useState(false)
   const [connectionError, setConnectionError] = useState('')
   const savingRef = useRef(false)
@@ -136,9 +152,14 @@ export function useSharedTaggedCases(
             : `No fue posible sincronizar ${kind === 'urgent' ? 'urgentes' : 'estabilización'}`,
         )
         setState((current) => {
-          const cached = readCachedIds(kind)
-          if (sameIds(current.caseIds, cached)) return current
-          return { ...current, caseIds: cached }
+          const cached = readCached(kind)
+          if (
+            sameIds(current.caseIds, cached.ids) &&
+            sameFrenteMap(current.frentes, cached.frentes)
+          ) {
+            return current
+          }
+          return { ...current, caseIds: cached.ids, frentes: cached.frentes }
         })
       }
     }
@@ -155,8 +176,10 @@ export function useSharedTaggedCases(
   }, [enabled, kind])
 
   const updateCaseIds = useCallback(
-    async (ids: string[]) => {
+    async (ids: string[], frentes?: FrenteMap) => {
       const normalized = normalizeIds(ids)
+      const normalizedFrentes =
+        frentes === undefined ? undefined : normalizeFrenteMap(frentes, normalized)
       savingRef.current = true
 
       try {
@@ -164,6 +187,7 @@ export function useSharedTaggedCases(
           kind,
           normalized,
           username ?? 'Usuario',
+          normalizedFrentes,
         )
         setState((previous) => applySharedState(kind, previous, next))
         setConnected(true)
@@ -183,10 +207,14 @@ export function useSharedTaggedCases(
           throw error
         }
 
-        writeCachedIds(kind, normalized)
+        const fallbackFrentes =
+          normalizedFrentes ??
+          normalizeFrenteMap(readCached(kind).frentes, normalized)
+        writeCachedIds(kind, normalized, fallbackFrentes)
         setState((current) => ({
           ...current,
           caseIds: normalized,
+          frentes: fallbackFrentes,
           actualizadoPor: username,
           actualizadoEn: new Date().toISOString(),
           version: current.version + 1,
@@ -248,6 +276,7 @@ export function useSharedTaggedCases(
 
   return {
     caseIds: state.caseIds,
+    frentes: state.frentes,
     updatedBy: state.actualizadoPor,
     updatedAt: state.actualizadoEn,
     updatesLocked: state.edicionBloqueada,

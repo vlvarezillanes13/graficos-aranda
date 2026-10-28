@@ -14,6 +14,7 @@ import {
   getUltimaIteracionTimestamp,
   getPendienteSuspendidoTimestamp,
 } from '../utils/deliveryDates'
+import { getFrente, type FrenteMap } from '../utils/stabilizationCases'
 import { CopyableTicketId } from './CopyableTicketId'
 
 interface ItemsTableProps {
@@ -24,10 +25,15 @@ interface ItemsTableProps {
   deliveryDatesLoading?: boolean
   urgentIds?: string[]
   stabilizationIds?: string[]
+  /** ticket (MAYÚSCULAS) -> frente de estabilización. */
+  frentes?: FrenteMap
+  /** Muestra la columna Frente (reporte de casos de estabilización). */
+  showFrente?: boolean
 }
 
 type SortKey =
   | 'idByProject'
+  | 'frente'
   | 'openedDate'
   | 'deliveryDate'
   | 'deliveryTestDate'
@@ -43,7 +49,12 @@ function getSortValue(
   item: IncidentItem,
   key: SortKey,
   deliveryDatesById?: Map<number, ItemDeliveryDates>,
+  frentes?: FrenteMap,
 ): string | number {
+  if (key === 'frente') {
+    return getFrente(frentes, item.idByProject)
+  }
+
   if (key === 'deliveryDate') {
     return getDeliveryDateTimestamp(item, deliveryDatesById) ?? 0
   }
@@ -75,6 +86,8 @@ export function ItemsTable({
   deliveryDatesLoading = false,
   urgentIds = [],
   stabilizationIds = [],
+  frentes,
+  showFrente = false,
 }: ItemsTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('openedDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -104,8 +117,8 @@ export function ItemsTable({
 
   const sortedItems = useMemo(() => {
     return [...items].sort((a, b) => {
-      const aVal = getSortValue(a, sortKey, deliveryDatesById)
-      const bVal = getSortValue(b, sortKey, deliveryDatesById)
+      const aVal = getSortValue(a, sortKey, deliveryDatesById, frentes)
+      const bVal = getSortValue(b, sortKey, deliveryDatesById, frentes)
 
       if (typeof aVal === 'number' && typeof bVal === 'number') {
         return sortDir === 'asc' ? aVal - bVal : bVal - aVal
@@ -117,7 +130,7 @@ export function ItemsTable({
         ? aStr.localeCompare(bStr)
         : bStr.localeCompare(aStr)
     })
-  }, [items, sortKey, sortDir, deliveryDatesById])
+  }, [items, sortKey, sortDir, deliveryDatesById, frentes])
 
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize))
   const currentPage = Math.min(page, totalPages)
@@ -164,6 +177,13 @@ export function ItemsTable({
                   ID{sortIndicator('idByProject')}
                 </button>
               </th>
+              {showFrente && (
+                <th>
+                  <button type="button" onClick={() => toggleSort('frente')}>
+                    Frente{sortIndicator('frente')}
+                  </button>
+                </th>
+              )}
               <th>Asunto</th>
               <th>Tipo</th>
               <th>Grupo</th>
@@ -225,7 +245,7 @@ export function ItemsTable({
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={13} className="empty-row">
+                <td colSpan={showFrente ? 14 : 13} className="empty-row">
                   {emptyMessage}
                 </td>
               </tr>
@@ -265,6 +285,11 @@ export function ItemsTable({
                       )}
                     </div>
                   </td>
+                  {showFrente && (
+                    <td className="frente-cell">
+                      {getFrente(frentes, item.idByProject)}
+                    </td>
+                  )}
                   <td className="subject-cell">{item.subject}</td>
                   <td>
                     <span className="pill">{item.itemTypeName}</span>
