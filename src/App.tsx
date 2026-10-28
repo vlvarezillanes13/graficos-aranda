@@ -52,6 +52,7 @@ import { useSharedUrgentCases } from './hooks/useSharedUrgentCases'
 import { clearDeliveryDatesCache } from './services/deliveryDatesService'
 import { navigateToRoute } from './routing/appRoute'
 import './App.css'
+import './responsive.css'
 
 const DashboardPage = lazy(() =>
   import('./pages/DashboardPage').then((module) => ({

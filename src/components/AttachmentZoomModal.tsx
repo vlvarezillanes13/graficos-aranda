@@ -27,6 +27,8 @@ export function AttachmentZoomModal({
   const [isDragging, setIsDragging] = useState(false)
   const isDraggingRef = useRef(false)
   const dragOrigin = useRef({ x: 0, y: 0, originX: 0, originY: 0 })
+  const activePointers = useRef(new Map<number, { x: number; y: number }>())
+  const pinchOrigin = useRef<{ distance: number; scale: number } | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const scaleRef = useRef(scale)
@@ -88,23 +90,67 @@ export function AttachmentZoomModal({
     [applyScale, kind],
   )
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (kind !== 'image' || scaleRef.current <= 1) return
-    if (event.button !== 0) return
-
-    event.preventDefault()
-    event.currentTarget.setPointerCapture(event.pointerId)
+  const startDrag = (clientX: number, clientY: number) => {
     isDraggingRef.current = true
     setIsDragging(true)
     dragOrigin.current = {
-      x: event.clientX,
-      y: event.clientY,
+      x: clientX,
+      y: clientY,
       originX: positionRef.current.x,
       originY: positionRef.current.y,
     }
   }
 
+  const pinchDistance = () => {
+    const [a, b] = Array.from(activePointers.current.values())
+    return Math.hypot(a.x - b.x, a.y - b.y)
+  }
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (kind !== 'image') return
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+
+    activePointers.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    })
+
+    // Dos dedos: pellizco para hacer zoom (móvil).
+    if (activePointers.current.size === 2) {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      isDraggingRef.current = false
+      setIsDragging(false)
+      pinchOrigin.current = {
+        distance: pinchDistance() || 1,
+        scale: scaleRef.current,
+      }
+      return
+    }
+
+    if (scaleRef.current <= 1) return
+
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    startDrag(event.clientX, event.clientY)
+  }
+
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (activePointers.current.has(event.pointerId)) {
+      activePointers.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      })
+    }
+
+    if (activePointers.current.size === 2 && pinchOrigin.current) {
+      event.preventDefault()
+      applyScale(
+        pinchOrigin.current.scale *
+          (pinchDistance() / pinchOrigin.current.distance),
+      )
+      return
+    }
+
     if (!isDraggingRef.current) return
 
     event.preventDefault()
@@ -116,13 +162,27 @@ export function AttachmentZoomModal({
   }
 
   const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const wasPinching = activePointers.current.size === 2
+    activePointers.current.delete(event.pointerId)
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    if (wasPinching) {
+      pinchOrigin.current = null
+      // Si queda un dedo y hay zoom, continúa como arrastre.
+      const [remaining] = Array.from(activePointers.current.values())
+      if (remaining && scaleRef.current > 1) {
+        startDrag(remaining.x, remaining.y)
+      }
+      return
+    }
+
     if (!isDraggingRef.current) return
 
     isDraggingRef.current = false
     setIsDragging(false)
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
   }
 
   useEffect(() => {
@@ -256,8 +316,8 @@ export function AttachmentZoomModal({
 
         {kind === 'image' && (
           <p className="attachment-zoom-hint">
-            Usa la rueda del mouse o los botones +/− para hacer zoom. Con zoom activo, arrastra para
-            recorrer la imagen.
+            Usa la rueda del mouse, el pellizco con dos dedos o los botones +/− para hacer zoom.
+            Con zoom activo, arrastra para recorrer la imagen.
           </p>
         )}
 

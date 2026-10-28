@@ -37,14 +37,38 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Evita que iOS/Android reescalen el texto al rotar el dispositivo. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+button,
+a,
+select,
+summary {
+  touch-action: manipulation;
 }
 
 button,

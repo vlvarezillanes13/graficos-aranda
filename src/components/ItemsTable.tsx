@@ -45,6 +45,20 @@ type SortKey =
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100]
 
+/** Opciones del selector de orden que reemplaza los encabezados en móvil. */
+const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
+  { key: 'idByProject', label: 'ID' },
+  { key: 'frente', label: 'Frente' },
+  { key: 'stateName', label: 'Estado' },
+  { key: 'priorityName', label: 'Prioridad' },
+  { key: 'openedDate', label: 'Apertura' },
+  { key: 'deliveryDate', label: 'Fecha de Entrega' },
+  { key: 'deliveryTestDate', label: 'Fecha Entrega TEST' },
+  { key: 'ultimaIteracion', label: 'Fecha Gestión AFC' },
+  { key: 'testAprobado', label: 'Fecha Test Aprobado' },
+  { key: 'pendienteSuspendido', label: 'Fecha Pendiente Suspendido' },
+]
+
 function getSortValue(
   item: IncidentItem,
   key: SortKey,
@@ -163,13 +177,45 @@ export function ItemsTable({
     setSortDir('desc')
   }
 
+  const sortOptions = useMemo(
+    () =>
+      SORT_OPTIONS.filter((option) => showFrente || option.key !== 'frente'),
+    [showFrente],
+  )
+
   const sortIndicator = (key: SortKey) =>
     sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
   return (
     <div className="items-table-content">
+      <div className="items-mobile-sort">
+        <label className="page-size-field">
+          <span>Ordenar por</span>
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+          >
+            {sortOptions.map((option) => (
+              <option key={option.key} value={option.key}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={() => setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))}
+          aria-label={
+            sortDir === 'asc' ? 'Orden ascendente' : 'Orden descendente'
+          }
+        >
+          {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+        </button>
+      </div>
+
       <div className="table-wrapper">
-        <table>
+        <table className="items-table">
           <thead>
             <tr>
               <th>
@@ -267,7 +313,7 @@ export function ItemsTable({
                     .join(' ')}
                   onClick={() => onSelect?.(item)}
                 >
-                  <td className="mono ticket-id-cell">
+                  <td className="mono ticket-id-cell" data-label="ID">
                     <div className="ticket-id-row">
                       <CopyableTicketId value={item.idByProject} />
                       {isUrgent && (
@@ -286,30 +332,42 @@ export function ItemsTable({
                     </div>
                   </td>
                   {showFrente && (
-                    <td className="frente-cell">
+                    <td className="frente-cell" data-label="Frente">
                       {getFrente(frentes, item.idByProject)}
                     </td>
                   )}
-                  <td className="subject-cell">{item.subject}</td>
-                  <td>
+                  <td className="subject-cell" data-label="Asunto">
+                    {item.subject}
+                  </td>
+                  <td data-label="Tipo">
                     <span className="pill">{item.itemTypeName}</span>
                   </td>
-                  <td>{item.groupName}</td>
-                  <td>{item.responsibleName}</td>
-                  <td>
+                  <td data-label="Grupo">{item.groupName}</td>
+                  <td data-label="Responsable">{item.responsibleName}</td>
+                  <td data-label="Estado">
                     <span
                       className={`status-pill ${item.isClosed ? 'closed' : 'open'}`}
                     >
                       {item.stateName}
                     </span>
                   </td>
-                  <td>{item.priorityName}</td>
-                  <td>{formatDate(item.openedDate)}</td>
-                  <td>{formatDeliveryDate(item, deliveryDatesById)}</td>
-                  <td>{formatDeliveryTestDate(item, deliveryDatesById)}</td>
-                  <td>{formatUltimaIteracionDate(item, deliveryDatesById)}</td>
-                  <td>{formatTestAprobadoDate(item, deliveryDatesById)}</td>
-                  <td>{formatPendienteSuspendidoDate(item, deliveryDatesById)}</td>
+                  <td data-label="Prioridad">{item.priorityName}</td>
+                  <td data-label="Apertura">{formatDate(item.openedDate)}</td>
+                  <td data-label="Fecha de Entrega">
+                    {formatDeliveryDate(item, deliveryDatesById)}
+                  </td>
+                  <td data-label="Fecha Entrega TEST">
+                    {formatDeliveryTestDate(item, deliveryDatesById)}
+                  </td>
+                  <td data-label="Fecha Gestión AFC">
+                    {formatUltimaIteracionDate(item, deliveryDatesById)}
+                  </td>
+                  <td data-label="Fecha Test Aprobado">
+                    {formatTestAprobadoDate(item, deliveryDatesById)}
+                  </td>
+                  <td data-label="Fecha Pendiente Suspendido">
+                    {formatPendienteSuspendidoDate(item, deliveryDatesById)}
+                  </td>
                 </tr>
                 )
               })

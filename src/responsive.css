@@ -1,0 +1,826 @@
+/*
+ * Capa responsive (móvil: Android / iPhone).
+ * Se importa después de App.css para sobrescribir sus reglas de escritorio.
+ *
+ * Breakpoints:
+ *   - <= 900px  : tablets en vertical / móviles grandes en horizontal
+ *   - <= 640px  : móviles
+ *   - <= 380px  : móviles pequeños (iPhone SE, Android compactos)
+ */
+
+/* ---------------------------------------------------------------------------
+ * Safe areas (notch / Dynamic Island / barra de gestos de iPhone y Android).
+ * Solo tienen efecto con viewport-fit=cover (definido en index.html).
+ * ------------------------------------------------------------------------- */
+.app-nav {
+  padding-top: max(0.85rem, env(safe-area-inset-top));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.hero {
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+}
+
+.app {
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+  padding-bottom: max(3rem, calc(1.5rem + env(safe-area-inset-bottom)));
+}
+
+.login-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+}
+
+/* Evita que hijos de grid/flex fuercen scroll horizontal de toda la página. */
+.app,
+.app > *,
+.panel,
+.dashboard-sections,
+.panel-tab-panel,
+.items-table-content {
+  min-width: 0;
+}
+
+.table-wrapper,
+.admin-results-table-wrap,
+.history-table-wrap {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* El grid de acciones de reportería desbordaba con minmax(300px) en <340px. */
+.reporting-actions {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+
+.summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+
+/* Selector de orden: solo visible en móvil (los encabezados se ocultan). */
+.items-mobile-sort {
+  display: none;
+}
+
+/* Sin efectos "hover" pegajosos en pantallas táctiles. */
+@media (hover: none) {
+  .app-nav-tab:hover:not(.active),
+  .app-nav-action:hover:not(:disabled),
+  .hero-actions button:hover:not(:disabled),
+  .panel-tab:hover:not(.active):not(:disabled),
+  .reporting-button:hover:not(:disabled),
+  .login-form button:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * <= 900px
+ * ------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .app-nav {
+    /* La barra sticky ocupaba demasiado alto de pantalla en móvil. */
+    position: static;
+  }
+
+  .app-nav-inner {
+    gap: 0.75rem;
+  }
+
+  .app-nav-tabs,
+  .app-nav-tabs.has-admin {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    justify-content: flex-start;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .app-nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-nav-tab,
+  .app-nav-tabs.has-admin .app-nav-tab {
+    flex: 0 0 auto;
+    min-width: 11rem;
+    width: auto;
+    scroll-snap-align: start;
+  }
+
+  .app-nav-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .app-nav-actions .app-nav-badge {
+    grid-column: 1 / -1;
+    margin-right: 0;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-nav-action {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+
+  .app-nav-action.primary {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * <= 768px  (móviles y tablets pequeñas)
+ * ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  /* iOS Safari hace zoom automático en inputs con fuente < 16px. */
+  input,
+  select,
+  textarea,
+  .filter-field input,
+  .filter-field select,
+  .controls-row select,
+  .page-size-field select,
+  .urgent-key-input,
+  .urgent-input,
+  .admin-search-field input,
+  .itsm-token-field input,
+  .itsm-token-field textarea,
+  .login-form input,
+  .reporting-filters input[type='date'] {
+    font-size: 16px;
+  }
+
+  /* Objetivos táctiles de al menos ~44px. */
+  .ghost-button,
+  .reporting-button,
+  .reporting-filter-reset,
+  .assignment-submit-button,
+  .itsm-token-submit,
+  .hero-actions button,
+  .login-form button,
+  .page-size-field select,
+  .filter-field input,
+  .filter-field select,
+  .controls-row select,
+  .urgent-key-input,
+  .admin-search-field input,
+  .login-form input {
+    min-height: 2.75rem;
+  }
+
+  .detail-tab,
+  .panel-tab,
+  .collapsible-toggle {
+    min-height: 2.75rem;
+  }
+
+  /* --- Estructura general --- */
+  .hero {
+    padding: 1.35rem max(1rem, env(safe-area-inset-right)) 2.25rem
+      max(1rem, env(safe-area-inset-left));
+    gap: 1rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.4rem, 6vw, 1.75rem);
+  }
+
+  .subtitle {
+    font-size: 0.92rem;
+  }
+
+  .hero-actions,
+  .hero-actions-buttons {
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .hero-actions-buttons > button,
+  .hero-actions > button {
+    flex: 1 1 auto;
+  }
+
+  .app {
+    margin-top: -1.25rem;
+    padding-left: max(0.85rem, env(safe-area-inset-left));
+    padding-right: max(0.85rem, env(safe-area-inset-right));
+    padding-bottom: max(2rem, calc(1rem + env(safe-area-inset-bottom)));
+  }
+
+  .dashboard-sections {
+    gap: 1rem;
+  }
+
+  .dashboard-panel-header,
+  .reporting-panel-header,
+  .standby-panel-header,
+  .admin-panel-header {
+    padding: 1.05rem 1rem 0;
+  }
+
+  .dashboard-panel-body,
+  .reporting-panel-body,
+  .standby-panel-body,
+  .admin-panel-body {
+    padding: 0 0.85rem 1rem;
+  }
+
+  .panel-tabs {
+    padding: 0.4rem;
+    gap: 0.4rem;
+  }
+
+  .panel-tab {
+    padding: 0.6rem 0.75rem;
+    min-height: 3.4rem;
+  }
+
+  .panel-tab-panel {
+    padding: 1rem 0.85rem 1.1rem;
+  }
+
+  .filter-bar,
+  .custom-section,
+  .table-section {
+    padding: 1rem;
+  }
+
+  .filter-bar-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .collapsible-summary {
+    padding: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .collapsible-content {
+    padding: 0 1rem 1rem;
+  }
+
+  .alert {
+    padding: 0.85rem 0.95rem;
+  }
+
+  /* --- Tarjetas resumen: 2 columnas --- */
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .summary-card {
+    padding: 0.8rem 0.85rem 0.9rem;
+  }
+
+  .summary-value {
+    font-size: 1.45rem;
+  }
+
+  /* --- Controles / filtros --- */
+  .controls-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .controls-row label,
+  .controls-row select {
+    width: 100%;
+  }
+
+  .reporting-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reporting-filters label,
+  .reporting-filters input[type='date'] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .reporting-filter-reset {
+    width: 100%;
+  }
+
+  .reporting-card {
+    padding: 1rem;
+  }
+
+  .admin-search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-search-field {
+    flex: 1 1 auto;
+  }
+
+  .admin-search-form .reporting-button {
+    width: 100%;
+  }
+
+  .reporting-stats {
+    gap: 0.5rem;
+  }
+
+  /* --- Gráficos --- */
+  .chart-card {
+    padding: 0.85rem 0.5rem 0.4rem;
+    min-height: 0;
+  }
+
+  .chart-card h3 {
+    padding: 0 0.5rem;
+  }
+
+  .chart-container.pie {
+    height: 340px;
+  }
+
+  /* --- Tabla de tickets -> tarjetas --- */
+  .items-mobile-sort {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+  }
+
+  .items-mobile-sort .page-size-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+  }
+
+  .items-mobile-sort .page-size-field select {
+    width: 100%;
+  }
+
+  .items-table,
+  .items-table tbody,
+  .items-table tr,
+  .items-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .items-table thead {
+    display: none;
+  }
+
+  .items-table tbody tr {
+    margin-bottom: 0.75rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgb(15 23 42 / 5%);
+  }
+
+  .items-table tbody tr.clickable-row.is-urgent {
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
+
+  .items-table tbody tr.clickable-row.is-stabilization:not(.is-urgent) {
+    background: #f0fdfa;
+    border-color: #99f6e4;
+  }
+
+  .items-table td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px dashed #e2e8f0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .items-table td:last-child {
+    border-bottom: none;
+  }
+
+  .items-table td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    max-width: 38%;
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .items-table td.ticket-id-cell {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .items-table .ticket-id-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .items-table .subject-cell {
+    max-width: none;
+  }
+
+  .items-table .pill,
+  .items-table .status-pill {
+    height: auto;
+    min-height: 1.45rem;
+    padding: 0.2rem 0.6rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .items-table td.empty-row {
+    display: block;
+    text-align: center;
+  }
+
+  /* --- Paginación (tabla de tickets y Azure DevOps) --- */
+  .table-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .table-pagination-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .table-pagination .page-size-field {
+    justify-content: space-between;
+  }
+
+  .page-buttons {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr auto;
+    gap: 0.45rem;
+  }
+
+  .page-buttons .page-indicator {
+    grid-column: 1 / -1;
+    order: -1;
+    min-width: 0;
+  }
+
+  /* --- Tablas anchas con scroll horizontal --- */
+  .matrix-sticky-col {
+    min-width: 8rem;
+    max-width: 10rem;
+  }
+
+  .matrix-state-col {
+    min-width: 4.5rem;
+  }
+
+  th,
+  td {
+    padding: 0.6rem 0.65rem;
+  }
+
+  .admin-results-table {
+    min-width: 36rem;
+  }
+
+  /* --- Modal de urgentes / estabilización: pantalla completa --- */
+  .urgent-modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .urgent-modal {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .urgent-modal-header {
+    padding: max(0.9rem, env(safe-area-inset-top)) 1rem 0.9rem;
+    gap: 0.75rem;
+  }
+
+  .urgent-modal-actions {
+    width: 100%;
+  }
+
+  .urgent-modal-actions .ghost-button {
+    flex: 1 1 auto;
+  }
+
+  .urgent-modal-body {
+    padding: 0.85rem 0.85rem max(1.25rem, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .urgent-input-actions .ghost-button,
+  .urgent-key-row .ghost-button,
+  .urgent-key-row .reporting-button {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .urgent-key-input {
+    flex: 1 1 100%;
+  }
+
+  /* --- Modal de token ITSM --- */
+  .itsm-token-overlay {
+    padding: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .itsm-token-modal {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    overflow: hidden;
+  }
+
+  .itsm-token-actions {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  /* --- Panel de detalle: ancho completo --- */
+  .detail-overlay {
+    justify-content: stretch;
+  }
+
+  .detail-panel {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+      max(1.5rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    box-shadow: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .detail-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .detail-header h2 {
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+  }
+
+  .detail-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .detail-tab {
+    flex: 1 0 auto;
+    white-space: nowrap;
+  }
+
+  .assignment-current {
+    grid-template-columns: 1fr;
+  }
+
+  .assignment-actions {
+    justify-content: stretch;
+  }
+
+  .assignment-submit-button {
+    width: 100%;
+  }
+
+  .detail-description-html table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .attachment-preview-header {
+    flex-wrap: wrap;
+  }
+
+  .attachment-preview-frame {
+    min-height: 60vh;
+  }
+
+  /* --- Historial: la hora pasa arriba, sin línea de tiempo lateral --- */
+  .history-timeline::before {
+    display: none;
+  }
+
+  .history-entry-header {
+    flex-wrap: wrap;
+    row-gap: 0.3rem;
+  }
+
+  .history-time {
+    flex: 0 0 100%;
+    order: -1;
+  }
+
+  .history-entry-body {
+    margin-left: 0;
+  }
+
+  .history-entry {
+    border-bottom: 1px solid #eef2f7;
+  }
+
+  .history-entry:last-child {
+    border-bottom: none;
+  }
+
+  .history-comment-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .history-comment-modal {
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .history-comment-header {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  /* --- Visor de adjuntos a pantalla completa --- */
+  .attachment-zoom-overlay {
+    padding: 0;
+  }
+
+  .attachment-zoom-modal {
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .attachment-zoom-header {
+    padding-top: max(0.85rem, env(safe-area-inset-top));
+  }
+
+  .attachment-zoom-actions .ghost-button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .attachment-zoom-hint {
+    padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * <= 640px
+ * ------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .app-nav {
+    padding-left: max(0.85rem, env(safe-area-inset-left));
+    padding-right: max(0.85rem, env(safe-area-inset-right));
+  }
+
+  .app-nav-brand {
+    flex-wrap: wrap;
+  }
+
+  /* Pestañas del menú principal en una sola fila deslizable. */
+  .app-nav-tabs,
+  .app-nav-tabs.has-admin {
+    flex-direction: row;
+  }
+
+  .app-nav-tab,
+  .app-nav-tabs.has-admin .app-nav-tab {
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 3rem;
+    padding: 0.5rem 0.8rem;
+    gap: 0.5rem;
+  }
+
+  .app-nav-tab-copy small,
+  .app-nav-tabs.has-admin .app-nav-tab-copy small {
+    display: none;
+  }
+
+  .app-nav-tab-copy strong {
+    font-size: 0.9rem;
+  }
+
+  .app-nav-tab-icon {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+
+  .panel-tab-copy small {
+    display: none;
+  }
+
+  .reporting-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reporting-stats div {
+    padding: 0.65rem 0.6rem;
+  }
+
+  .reporting-stats dd {
+    font-size: 1.1rem;
+  }
+
+  .login-card {
+    padding: 1.5rem 1.25rem;
+    border-radius: 16px;
+  }
+
+  .login-card h1 {
+    font-size: 1.5rem;
+  }
+
+  .login-shell {
+    align-items: center;
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .detail-grid {
+    gap: 0.6rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * <= 380px  (iPhone SE / Android compactos)
+ * ------------------------------------------------------------------------- */
+@media (max-width: 380px) {
+  .summary-grid {
+    gap: 0.5rem;
+  }
+
+  .summary-value {
+    font-size: 1.3rem;
+  }
+
+  .summary-hint {
+    font-size: 0.72rem;
+  }
+
+  .reporting-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .items-table td[data-label]::before {
+    flex-basis: 42%;
+    max-width: 42%;
+  }
+
+  .app-nav-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .app-nav-action.primary {
+    grid-column: auto;
+  }
+}
+
+/* Móvil en horizontal: modales sin ocupar toda la altura con paddings grandes. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .hero {
+    padding-top: 1rem;
+    padding-bottom: 1.75rem;
+  }
+
+  .detail-panel,
+  .urgent-modal,
+  .attachment-zoom-modal,
+  .history-comment-modal {
+    height: 100dvh;
+  }
+}

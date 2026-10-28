@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { CountItem } from '../types/incident'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import { truncateLabel } from '../utils/aggregations'
 
 interface CountChartProps {
@@ -43,9 +44,13 @@ export function BarCountChart({
   color,
   maxItems = 10,
 }: CountChartProps) {
+  const isMobile = useIsMobile()
   const chartData = data.slice(0, maxItems)
-  const yAxisWidth = estimateYAxisWidth(chartData.map((item) => item.name))
-  const chartHeight = Math.max(300, chartData.length * 30 + 48)
+  // En móvil el eje Y no puede ocupar media pantalla: se acorta el texto.
+  const yAxisWidth = isMobile
+    ? 104
+    : estimateYAxisWidth(chartData.map((item) => item.name))
+  const chartHeight = Math.max(300, chartData.length * (isMobile ? 34 : 30) + 48)
 
   if (chartData.length === 0) {
     return (
@@ -64,15 +69,22 @@ export function BarCountChart({
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ top: 8, right: 16, left: 4, bottom: 8 }}
+            margin={{ top: 8, right: isMobile ? 8 : 16, left: 4, bottom: 8 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis type="number" allowDecimals={false} />
+            <XAxis
+              type="number"
+              allowDecimals={false}
+              tick={{ fontSize: isMobile ? 10 : 12 }}
+            />
             <YAxis
               type="category"
               dataKey="name"
               width={yAxisWidth}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: isMobile ? 10 : 11 }}
+              tickFormatter={
+                isMobile ? (value: string) => truncateLabel(value, 16) : undefined
+              }
             />
             <Tooltip
               formatter={(value: number) => [value, 'Cantidad']}
@@ -93,6 +105,7 @@ export function PieCountChart({
   data,
   maxItems = 6,
 }: Omit<CountChartProps, 'color'>) {
+  const isMobile = useIsMobile()
   const chartData = data.slice(0, maxItems)
   const otherCount = data
     .slice(maxItems)
@@ -124,11 +137,15 @@ export function PieCountChart({
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={55}
-              outerRadius={95}
+              innerRadius={isMobile ? 40 : 55}
+              outerRadius={isMobile ? 70 : 95}
               paddingAngle={2}
+              // En móvil las etiquetas externas se salen de la pantalla:
+              // se muestra solo el porcentaje y el detalle va en la leyenda.
               label={({ name, percent }) =>
-                `${truncateLabel(name, 14)} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                isMobile
+                  ? `${((percent ?? 0) * 100).toFixed(0)}%`
+                  : `${truncateLabel(name, 14)} (${((percent ?? 0) * 100).toFixed(0)}%)`
               }
             >
               {finalData.map((_, index) => (
@@ -139,7 +156,12 @@ export function PieCountChart({
               ))}
             </Pie>
             <Tooltip formatter={(value: number) => [value, 'Cantidad']} />
-            <Legend />
+            <Legend
+              wrapperStyle={isMobile ? { fontSize: 12 } : undefined}
+              formatter={
+                isMobile ? (value: string) => truncateLabel(value, 24) : undefined
+              }
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
